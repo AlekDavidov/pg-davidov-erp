@@ -1,0 +1,1 @@
+{"name":"pg-davidov-erp-frontend","private":true,"version":"0.1.0","type":"module","scripts":{"dev":"vite","build":"vite build","preview":"vite preview"},"dependencies":{"@primeuix/themes":"latest","axios":"latest","pinia":"latest","primeicons":"latest","primevue":"latest","vue":"latest","vue-router":"latest"},"devDependencies":{"@vitejs/plugin-vue":"latest","vite":"latest"}}

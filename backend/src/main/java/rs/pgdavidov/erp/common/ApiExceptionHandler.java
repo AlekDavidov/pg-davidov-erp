@@ -1,0 +1,3 @@
+package rs.pgdavidov.erp.common;
+import org.springframework.http.*;import org.springframework.web.bind.MethodArgumentNotValidException;import org.springframework.web.bind.annotation.*;import java.util.stream.Collectors;
+@RestControllerAdvice public class ApiExceptionHandler { @ExceptionHandler(MethodArgumentNotValidException.class) ProblemDetail validation(MethodArgumentNotValidException ex){ProblemDetail d=ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"Validation failed");d.setProperty("errors",ex.getBindingResult().getFieldErrors().stream().collect(Collectors.toMap(e->e.getField(),e->e.getDefaultMessage()==null?"Invalid value":e.getDefaultMessage(),(a,b)->a)));return d;} }

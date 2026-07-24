@@ -1,0 +1,3 @@
+package rs.pgdavidov.erp.config;
+import org.springframework.context.annotation.*;import org.springframework.web.cors.*;import org.springframework.web.filter.CorsFilter;import java.util.List;
+@Configuration public class CorsConfig { @Bean CorsFilter corsFilter(){ CorsConfiguration c=new CorsConfiguration();c.setAllowedOrigins(List.of("http://localhost:5173","http://localhost:8081"));c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));c.setAllowedHeaders(List.of("*"));UrlBasedCorsConfigurationSource s=new UrlBasedCorsConfigurationSource();s.registerCorsConfiguration("/api/**",c);return new CorsFilter(s);} }

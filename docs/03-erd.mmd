@@ -1,0 +1,159 @@
+erDiagram
+    APP_USER ||--o{ AUDIT_LOG : creates
+    CATEGORY ||--o{ SUPPLIER : default_for
+    SUPPLIER ||--o{ SUPPLIER_ALIAS : has
+    SUPPLIER ||--o{ INVOICE : issues
+    SUPPLIER ||--o{ TRANSACTION : assigned_to
+    CATEGORY ||--o{ TRANSACTION : classifies
+    BANK_ACCOUNT ||--o{ BANK_STATEMENT : receives
+    BANK_STATEMENT ||--o{ BANK_STATEMENT_ROW : contains
+    BANK_STATEMENT_ROW ||--o| TRANSACTION : creates
+    TRANSACTION ||--o{ INVOICE_PAYMENT : allocates
+    INVOICE ||--o{ INVOICE_PAYMENT : receives
+    DOCUMENT ||--o{ INVOICE_DOCUMENT : linked
+    INVOICE ||--o{ INVOICE_DOCUMENT : linked
+    DOCUMENT ||--o{ TRANSACTION_DOCUMENT : linked
+    TRANSACTION ||--o{ TRANSACTION_DOCUMENT : linked
+
+    APP_USER {
+      uuid id PK
+      varchar username UK
+      varchar password_hash
+      boolean active
+      timestamptz created_at
+    }
+
+    CATEGORY {
+      uuid id PK
+      varchar code UK
+      varchar name UK
+      category_type type
+      boolean active
+    }
+
+    SUPPLIER {
+      uuid id PK
+      varchar code UK
+      varchar name
+      uuid default_category_id FK
+      varchar payment_method
+      integer payment_term_days
+      varchar tax_id
+      varchar registration_number
+      boolean active
+    }
+
+    SUPPLIER_ALIAS {
+      uuid id PK
+      uuid supplier_id FK
+      varchar alias
+      varchar normalized_alias UK
+      boolean active
+    }
+
+    BANK_ACCOUNT {
+      uuid id PK
+      varchar code UK
+      varchar bank_name
+      varchar account_number UK
+      char currency_code
+      boolean active
+    }
+
+    BANK_STATEMENT {
+      uuid id PK
+      uuid bank_account_id FK
+      varchar statement_code UK
+      date period_from
+      date period_to
+      numeric opening_balance
+      numeric total_income
+      numeric total_expenses
+      numeric closing_balance
+      validation_status status
+      varchar original_filename
+    }
+
+    BANK_STATEMENT_ROW {
+      uuid id PK
+      uuid bank_statement_id FK
+      integer entry_no
+      date booking_date
+      date execution_date
+      numeric income
+      numeric expenses
+      varchar counterparty_raw
+      text description_raw
+      varchar order_reference
+      varchar complaint_reference
+      uuid suggested_supplier_id FK
+      match_status status
+    }
+
+    TRANSACTION {
+      uuid id PK
+      varchar transaction_code UK
+      date transaction_date
+      char currency_code
+      numeric debit
+      numeric credit
+      text description
+      uuid bank_account_id FK
+      uuid supplier_id FK
+      uuid category_id FK
+      uuid bank_statement_row_id FK
+      transaction_status status
+      transaction_source source
+      boolean verified
+    }
+
+    INVOICE {
+      uuid id PK
+      varchar invoice_code UK
+      varchar invoice_number
+      uuid supplier_id FK
+      date invoice_date
+      date due_date
+      numeric amount
+      char currency_code
+      text notes
+    }
+
+    INVOICE_PAYMENT {
+      uuid id PK
+      uuid invoice_id FK
+      uuid transaction_id FK
+      numeric amount
+      timestamptz created_at
+    }
+
+    DOCUMENT {
+      uuid id PK
+      varchar document_code UK
+      varchar filename
+      varchar content_type
+      bigint size_bytes
+      varchar storage_path
+      varchar checksum_sha256
+    }
+
+    INVOICE_DOCUMENT {
+      uuid invoice_id FK
+      uuid document_id FK
+    }
+
+    TRANSACTION_DOCUMENT {
+      uuid transaction_id FK
+      uuid document_id FK
+    }
+
+    AUDIT_LOG {
+      bigint id PK
+      uuid user_id FK
+      varchar entity_type
+      varchar entity_id
+      varchar action
+      jsonb old_value
+      jsonb new_value
+      timestamptz created_at
+    }

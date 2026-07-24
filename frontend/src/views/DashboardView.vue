@@ -1,0 +1,1 @@
+<template><div><h2>Dashboard</h2><p>Foundation je pokrenut. Sledeći modul: Suppliers i Categories.</p><div class="cards"><article><b>Backend</b><span>/actuator/health</span></article><article><b>API dokumentacija</b><span>/swagger-ui.html</span></article><article><b>Baza</b><span>PostgreSQL + Flyway</span></article></div></div></template>
