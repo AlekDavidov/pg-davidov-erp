@@ -1,0 +1,55 @@
+INSERT INTO categories (
+    id,
+    code,
+    name,
+    category_type,
+    active,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        gen_random_uuid(),
+        'FOOD',
+        'Hrana',
+        'EXPENSE',
+        TRUE,
+        NOW(),
+        NOW()
+    ),
+    (
+        gen_random_uuid(),
+        'FUEL',
+        'Gorivo',
+        'EXPENSE',
+        TRUE,
+        NOW(),
+        NOW()
+    ),
+    (
+        gen_random_uuid(),
+        'VETERINARY',
+        'Veterinar',
+        'EXPENSE',
+        TRUE,
+        NOW(),
+        NOW()
+    ),
+    (
+        gen_random_uuid(),
+        'MILK_SALES',
+        'Prodaja mleka',
+        'INCOME',
+        TRUE,
+        NOW(),
+        NOW()
+    ),
+    (
+        gen_random_uuid(),
+        'CHEESE_SALES',
+        'Prodaja sira',
+        'INCOME',
+        TRUE,
+        NOW(),
+        NOW()
+    );
