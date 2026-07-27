@@ -13,6 +13,7 @@ import rs.pgdavidov.erp.common.exception.ResourceNotFoundException;
 import rs.pgdavidov.erp.common.pagination.PagedResponse;
 import rs.pgdavidov.erp.document.dto.DocumentResponse;
 import rs.pgdavidov.erp.document.entity.Document;
+import rs.pgdavidov.erp.document.repository.DocumentRepository;
 import rs.pgdavidov.erp.document.service.DocumentService;
 import rs.pgdavidov.erp.invoice.dto.InvoiceRequest;
 import rs.pgdavidov.erp.invoice.dto.InvoiceResponse;
@@ -24,6 +25,7 @@ import rs.pgdavidov.erp.invoice.repository.InvoiceRepository;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
 import rs.pgdavidov.erp.supplier.repository.SupplierRepository;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -35,6 +37,7 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDocumentRepository invoiceDocumentRepository;
     private final SupplierRepository supplierRepository;
+    private final DocumentRepository documentRepository;
     private final DocumentService documentService;
     private final InvoiceMapper invoiceMapper;
 
@@ -47,7 +50,8 @@ public class InvoiceService {
         Sort sort = createSort(sortBy, sortDirection);
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Invoice> invoicePage = invoiceRepository.findAll(pageable);
+        Page<Invoice> invoicePage =
+                invoiceRepository.findAll(pageable);
 
         return PagedResponse.from(
                 invoicePage,
@@ -70,11 +74,14 @@ public class InvoiceService {
                 request.getInvoiceNumber()
         );
 
-        Supplier supplier = findSupplierById(request.getSupplierId());
+        Supplier supplier =
+                findSupplierById(request.getSupplierId());
 
-        Invoice invoice = invoiceMapper.toEntity(request, supplier);
+        Invoice invoice =
+                invoiceMapper.toEntity(request, supplier);
 
-        Invoice savedInvoice = invoiceRepository.saveAndFlush(invoice);
+        Invoice savedInvoice =
+                invoiceRepository.saveAndFlush(invoice);
 
         return invoiceMapper.toResponse(savedInvoice);
     }
@@ -97,7 +104,8 @@ public class InvoiceService {
                 request.getInvoiceNumber()
         );
 
-        Supplier supplier = findSupplierById(request.getSupplierId());
+        Supplier supplier =
+                findSupplierById(request.getSupplierId());
 
         invoiceMapper.updateEntity(
                 invoice,
@@ -105,7 +113,8 @@ public class InvoiceService {
                 supplier
         );
 
-        Invoice savedInvoice = invoiceRepository.saveAndFlush(invoice);
+        Invoice savedInvoice =
+                invoiceRepository.saveAndFlush(invoice);
 
         return invoiceMapper.toResponse(savedInvoice);
     }
@@ -118,48 +127,141 @@ public class InvoiceService {
     ) {
         Invoice invoice = findInvoiceById(invoiceId);
 
-        Document document = documentService.createDocument(
-                documentCode,
-                file
-        );
+        Document document =
+                documentService.createDocument(
+                        documentCode,
+                        file
+                );
 
-        InvoiceDocument invoiceDocument = new InvoiceDocument(
-                invoice,
-                document
-        );
+        try {
+            InvoiceDocument invoiceDocument =
+                    new InvoiceDocument(
+                            invoice,
+                            document
+                    );
 
-        invoiceDocumentRepository.saveAndFlush(invoiceDocument);
+            invoiceDocumentRepository.saveAndFlush(invoiceDocument);
 
-        return documentService.toResponse(document);
+            return documentService.toResponse(document);
+        } catch (RuntimeException exception) {
+            documentService.deleteDocument(document);
+            throw exception;
+        }
+    }
+
+    public List<DocumentResponse> getDocuments(UUID invoiceId) {
+        findInvoiceById(invoiceId);
+
+        return invoiceDocumentRepository
+                .findAllByInvoice_IdOrderByDocument_CreatedAtDesc(invoiceId)
+                .stream()
+                .map(InvoiceDocument::getDocument)
+                .map(documentService::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public void removeDocument(
+            UUID invoiceId,
+            UUID documentId
+    ) {
+        findInvoiceById(invoiceId);
+
+        InvoiceDocument invoiceDocument =
+                invoiceDocumentRepository
+                        .findByInvoice_IdAndDocument_Id(
+                                invoiceId,
+                                documentId
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Document with ID '"
+                                                + documentId
+                                                + "' is not attached to invoice with ID '"
+                                                + invoiceId
+                                                + "'."
+                                )
+                        );
+
+        Document document = invoiceDocument.getDocument();
+
+        invoiceDocumentRepository.delete(invoiceDocument);
+        invoiceDocumentRepository.flush();
+
+        boolean attachedToAnotherInvoice =
+                invoiceDocumentRepository
+                        .countByDocument_Id(documentId) > 0;
+
+        boolean attachedToTransaction =
+                documentRepository
+                        .existsTransactionDocumentByDocumentId(documentId);
+
+        if (!attachedToAnotherInvoice && !attachedToTransaction) {
+            documentService.deleteDocument(document);
+        }
     }
 
     @Transactional
     public void delete(UUID id) {
         Invoice invoice = findInvoiceById(id);
 
+        List<Document> attachedDocuments =
+                invoiceDocumentRepository
+                        .findAllByInvoice_IdOrderByDocument_CreatedAtDesc(id)
+                        .stream()
+                        .map(InvoiceDocument::getDocument)
+                        .toList();
+
         invoiceRepository.delete(invoice);
+        invoiceRepository.flush();
+
+        for (Document document : attachedDocuments) {
+            UUID documentId = document.getId();
+
+            boolean attachedToAnotherInvoice =
+                    invoiceDocumentRepository
+                            .countByDocument_Id(documentId) > 0;
+
+            boolean attachedToTransaction =
+                    documentRepository
+                            .existsTransactionDocumentByDocumentId(documentId);
+
+            if (!attachedToAnotherInvoice && !attachedToTransaction) {
+                documentService.deleteDocument(document);
+            }
+        }
     }
 
     private Invoice findInvoiceById(UUID id) {
         return invoiceRepository
                 .findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Invoice with ID '" + id + "' was not found."
-                ));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Invoice with ID '"
+                                        + id
+                                        + "' was not found."
+                        )
+                );
     }
 
     private Supplier findSupplierById(UUID supplierId) {
         return supplierRepository
                 .findById(supplierId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Supplier with ID '" + supplierId + "' was not found."
-                ));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Supplier with ID '"
+                                        + supplierId
+                                        + "' was not found."
+                        )
+                );
     }
 
     private void validateInvoiceCodeForCreate(String invoiceCode) {
         if (invoiceRepository.existsByInvoiceCode(invoiceCode)) {
             throw new DuplicateResourceException(
-                    "Invoice with code '" + invoiceCode + "' already exists."
+                    "Invoice with code '"
+                            + invoiceCode
+                            + "' already exists."
             );
         }
     }
@@ -174,7 +276,9 @@ public class InvoiceService {
                         .equals(requestedInvoiceCode);
 
         if (invoiceCodeChanged
-                && invoiceRepository.existsByInvoiceCode(requestedInvoiceCode)) {
+                && invoiceRepository.existsByInvoiceCode(
+                requestedInvoiceCode
+        )) {
             throw new DuplicateResourceException(
                     "Invoice with code '"
                             + requestedInvoiceCode
@@ -188,10 +292,11 @@ public class InvoiceService {
             String invoiceNumber
     ) {
         boolean alreadyExists =
-                invoiceRepository.existsBySupplierIdAndInvoiceNumber(
-                        supplierId,
-                        invoiceNumber
-                );
+                invoiceRepository
+                        .existsBySupplierIdAndInvoiceNumber(
+                                supplierId,
+                                invoiceNumber
+                        );
 
         if (alreadyExists) {
             throw new DuplicateResourceException(
@@ -208,7 +313,9 @@ public class InvoiceService {
             String requestedInvoiceNumber
     ) {
         UUID existingSupplierId =
-                existingInvoice.getSupplier().getId();
+                existingInvoice
+                        .getSupplier()
+                        .getId();
 
         boolean supplierChanged =
                 !existingSupplierId.equals(requestedSupplierId);
@@ -223,10 +330,11 @@ public class InvoiceService {
         }
 
         boolean alreadyExists =
-                invoiceRepository.existsBySupplierIdAndInvoiceNumber(
-                        requestedSupplierId,
-                        requestedInvoiceNumber
-                );
+                invoiceRepository
+                        .existsBySupplierIdAndInvoiceNumber(
+                                requestedSupplierId,
+                                requestedInvoiceNumber
+                        );
 
         if (alreadyExists) {
             throw new DuplicateResourceException(
@@ -242,7 +350,9 @@ public class InvoiceService {
             return;
         }
 
-        if (request.getDueDate().isBefore(request.getInvoiceDate())) {
+        if (request
+                .getDueDate()
+                .isBefore(request.getInvoiceDate())) {
             throw new IllegalArgumentException(
                     "Due date cannot be before invoice date."
             );

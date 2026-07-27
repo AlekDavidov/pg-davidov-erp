@@ -11,11 +11,13 @@ import java.util.UUID;
 public interface InvoiceDocumentRepository
         extends JpaRepository<InvoiceDocument, InvoiceDocumentId> {
 
-    List<InvoiceDocument> findAllByInvoice_IdOrderByDocument_CreatedAtDesc(
+    List<InvoiceDocument>
+    findAllByInvoice_IdOrderByDocument_CreatedAtDesc(
             UUID invoiceId
     );
 
-    Optional<InvoiceDocument> findByInvoice_IdAndDocument_Id(
+    Optional<InvoiceDocument>
+    findByInvoice_IdAndDocument_Id(
             UUID invoiceId,
             UUID documentId
     );
