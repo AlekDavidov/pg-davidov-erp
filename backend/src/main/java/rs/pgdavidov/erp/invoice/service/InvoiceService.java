@@ -20,11 +20,14 @@ import rs.pgdavidov.erp.invoice.dto.InvoiceResponse;
 import rs.pgdavidov.erp.invoice.entity.Invoice;
 import rs.pgdavidov.erp.invoice.entity.InvoiceDocument;
 import rs.pgdavidov.erp.invoice.mapper.InvoiceMapper;
+import rs.pgdavidov.erp.invoice.model.InvoiceStatus;
 import rs.pgdavidov.erp.invoice.repository.InvoiceDocumentRepository;
+import rs.pgdavidov.erp.invoice.repository.InvoicePaymentRepository;
 import rs.pgdavidov.erp.invoice.repository.InvoiceRepository;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
 import rs.pgdavidov.erp.supplier.repository.SupplierRepository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -36,10 +39,12 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDocumentRepository invoiceDocumentRepository;
+    private final InvoicePaymentRepository invoicePaymentRepository;
     private final SupplierRepository supplierRepository;
     private final DocumentRepository documentRepository;
     private final DocumentService documentService;
     private final InvoiceMapper invoiceMapper;
+    private final InvoiceCalculationService invoiceCalculationService;
 
     public PagedResponse<InvoiceResponse> findAll(
             int page,
@@ -55,14 +60,14 @@ public class InvoiceService {
 
         return PagedResponse.from(
                 invoicePage,
-                invoiceMapper::toResponse
+                this::toResponse
         );
     }
 
     public InvoiceResponse findById(UUID id) {
         Invoice invoice = findInvoiceById(id);
 
-        return invoiceMapper.toResponse(invoice);
+        return toResponse(invoice);
     }
 
     @Transactional
@@ -83,7 +88,7 @@ public class InvoiceService {
         Invoice savedInvoice =
                 invoiceRepository.saveAndFlush(invoice);
 
-        return invoiceMapper.toResponse(savedInvoice);
+        return toResponse(savedInvoice);
     }
 
     @Transactional
@@ -116,7 +121,7 @@ public class InvoiceService {
         Invoice savedInvoice =
                 invoiceRepository.saveAndFlush(invoice);
 
-        return invoiceMapper.toResponse(savedInvoice);
+        return toResponse(savedInvoice);
     }
 
     @Transactional
@@ -232,6 +237,35 @@ public class InvoiceService {
         }
     }
 
+    private InvoiceResponse toResponse(Invoice invoice) {
+        BigDecimal paidAmount =
+                invoicePaymentRepository
+                        .sumAmountByInvoiceId(
+                                invoice.getId()
+                        );
+
+        BigDecimal remainingAmount =
+                invoiceCalculationService
+                        .calculateRemainingAmount(
+                                invoice.getAmount(),
+                                paidAmount
+                        );
+
+        InvoiceStatus status =
+                invoiceCalculationService
+                        .calculateStatus(
+                                invoice.getAmount(),
+                                paidAmount
+                        );
+
+        return invoiceMapper.toResponse(
+                invoice,
+                paidAmount,
+                remainingAmount,
+                status
+        );
+    }
+
     private Invoice findInvoiceById(UUID id) {
         return invoiceRepository
                 .findById(id)
@@ -256,7 +290,9 @@ public class InvoiceService {
                 );
     }
 
-    private void validateInvoiceCodeForCreate(String invoiceCode) {
+    private void validateInvoiceCodeForCreate(
+            String invoiceCode
+    ) {
         if (invoiceRepository.existsByInvoiceCode(invoiceCode)) {
             throw new DuplicateResourceException(
                     "Invoice with code '"

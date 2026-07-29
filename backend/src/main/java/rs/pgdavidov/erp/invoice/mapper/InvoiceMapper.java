@@ -4,12 +4,20 @@ import org.springframework.stereotype.Component;
 import rs.pgdavidov.erp.invoice.dto.InvoiceRequest;
 import rs.pgdavidov.erp.invoice.dto.InvoiceResponse;
 import rs.pgdavidov.erp.invoice.entity.Invoice;
+import rs.pgdavidov.erp.invoice.model.InvoiceStatus;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
+
+import java.math.BigDecimal;
 
 @Component
 public class InvoiceMapper {
 
-    public InvoiceResponse toResponse(Invoice invoice) {
+    public InvoiceResponse toResponse(
+            Invoice invoice,
+            BigDecimal paidAmount,
+            BigDecimal remainingAmount,
+            InvoiceStatus status
+    ) {
         InvoiceResponse response = new InvoiceResponse();
 
         response.setId(invoice.getId());
@@ -20,6 +28,9 @@ public class InvoiceMapper {
         response.setInvoiceDate(invoice.getInvoiceDate());
         response.setDueDate(invoice.getDueDate());
         response.setAmount(invoice.getAmount());
+        response.setPaidAmount(paidAmount);
+        response.setRemainingAmount(remainingAmount);
+        response.setStatus(status);
         response.setCurrencyCode(invoice.getCurrencyCode());
         response.setNotes(invoice.getNotes());
         response.setCreatedAt(invoice.getCreatedAt());
@@ -28,7 +39,10 @@ public class InvoiceMapper {
         return response;
     }
 
-    public Invoice toEntity(InvoiceRequest request, Supplier supplier) {
+    public Invoice toEntity(
+            InvoiceRequest request,
+            Supplier supplier
+    ) {
         Invoice invoice = new Invoice();
 
         invoice.setInvoiceCode(request.getInvoiceCode());

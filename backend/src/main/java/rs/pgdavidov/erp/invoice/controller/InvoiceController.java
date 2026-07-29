@@ -22,6 +22,9 @@ import rs.pgdavidov.erp.common.pagination.PagedResponse;
 import rs.pgdavidov.erp.document.dto.DocumentResponse;
 import rs.pgdavidov.erp.invoice.dto.InvoiceRequest;
 import rs.pgdavidov.erp.invoice.dto.InvoiceResponse;
+import rs.pgdavidov.erp.invoice.dto.PaymentRequest;
+import rs.pgdavidov.erp.invoice.dto.PaymentResponse;
+import rs.pgdavidov.erp.invoice.service.InvoicePaymentService;
 import rs.pgdavidov.erp.invoice.service.InvoiceService;
 
 import java.util.List;
@@ -34,6 +37,7 @@ import java.util.UUID;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final InvoicePaymentService invoicePaymentService;
 
     @GetMapping
     public ResponseEntity<PagedResponse<InvoiceResponse>> findAll(
@@ -134,6 +138,45 @@ public class InvoiceController {
         invoiceService.removeDocument(
                 invoiceId,
                 documentId
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{invoiceId}/payments")
+    public ResponseEntity<PaymentResponse> attachPayment(
+            @PathVariable UUID invoiceId,
+            @Valid @RequestBody PaymentRequest request
+    ) {
+        PaymentResponse response =
+                invoicePaymentService.attachPayment(
+                        invoiceId,
+                        request
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
+
+    @GetMapping("/{invoiceId}/payments")
+    public ResponseEntity<List<PaymentResponse>> getPayments(
+            @PathVariable UUID invoiceId
+    ) {
+        List<PaymentResponse> response =
+                invoicePaymentService.getPayments(invoiceId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{invoiceId}/payments/{paymentId}")
+    public ResponseEntity<Void> detachPayment(
+            @PathVariable UUID invoiceId,
+            @PathVariable UUID paymentId
+    ) {
+        invoicePaymentService.detachPayment(
+                invoiceId,
+                paymentId
         );
 
         return ResponseEntity.noContent().build();
