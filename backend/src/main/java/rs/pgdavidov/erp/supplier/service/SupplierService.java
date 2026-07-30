@@ -26,6 +26,8 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class SupplierService {
 
+    private static final String CODE_PREFIX = "SUP";
+
     private final SupplierRepository supplierRepository;
     private final CategoryRepository categoryRepository;
     private final PaymentMethodRepository paymentMethodRepository;
@@ -37,7 +39,8 @@ public class SupplierService {
             String sortBy,
             String direction
     ) {
-        Sort.Direction sortDirection = Sort.Direction.fromString(direction);
+        Sort.Direction sortDirection =
+                Sort.Direction.fromString(direction);
 
         PageRequest pageRequest = PageRequest.of(
                 page,
@@ -45,7 +48,8 @@ public class SupplierService {
                 Sort.by(sortDirection, sortBy)
         );
 
-        Page<Supplier> suppliers = supplierRepository.findAll(pageRequest);
+        Page<Supplier> suppliers =
+                supplierRepository.findAll(pageRequest);
 
         return PagedResponse.from(
                 suppliers,
@@ -59,13 +63,19 @@ public class SupplierService {
 
     @Transactional
     public SupplierResponse create(SupplierRequest request) {
-        validateUniqueFieldsForCreate(request);
+        validateUniqueNameForCreate(request.name());
 
-        Category category = getCategory(request.defaultCategoryId());
-        PaymentMethod paymentMethod = getPaymentMethod(request.paymentMethodId());
+        Category category =
+                getCategory(request.defaultCategoryId());
+
+        PaymentMethod paymentMethod =
+                getPaymentMethod(request.paymentMethodId());
+
+        String code = generateCode();
 
         Supplier supplier = supplierMapper.toEntity(
                 request,
+                code,
                 category,
                 paymentMethod
         );
@@ -76,13 +86,22 @@ public class SupplierService {
     }
 
     @Transactional
-    public SupplierResponse update(UUID id, SupplierRequest request) {
+    public SupplierResponse update(
+            UUID id,
+            SupplierRequest request
+    ) {
         Supplier supplier = getSupplier(id);
 
-        validateUniqueFieldsForUpdate(supplier, request);
+        validateUniqueNameForUpdate(
+                supplier,
+                request.name()
+        );
 
-        Category category = getCategory(request.defaultCategoryId());
-        PaymentMethod paymentMethod = getPaymentMethod(request.paymentMethodId());
+        Category category =
+                getCategory(request.defaultCategoryId());
+
+        PaymentMethod paymentMethod =
+                getPaymentMethod(request.paymentMethodId());
 
         supplierMapper.updateEntity(
                 supplier,
@@ -101,35 +120,32 @@ public class SupplierService {
         supplierRepository.delete(getSupplier(id));
     }
 
-    private void validateUniqueFieldsForCreate(SupplierRequest request) {
-        if (supplierRepository.existsByCode(request.code())) {
-            throw new DuplicateResourceException(
-                    "Supplier code already exists: " + request.code()
-            );
-        }
+    private String generateCode() {
+        long sequenceValue =
+                supplierRepository.getNextCodeSequenceValue();
 
-        if (supplierRepository.existsByName(request.name())) {
+        return CODE_PREFIX + String.format(
+                "%04d",
+                sequenceValue
+        );
+    }
+
+    private void validateUniqueNameForCreate(String name) {
+        if (supplierRepository.existsByName(name)) {
             throw new DuplicateResourceException(
-                    "Supplier name already exists: " + request.name()
+                    "Supplier name already exists: " + name
             );
         }
     }
 
-    private void validateUniqueFieldsForUpdate(
+    private void validateUniqueNameForUpdate(
             Supplier supplier,
-            SupplierRequest request
+            String name
     ) {
-        if (!supplier.getCode().equals(request.code())
-                && supplierRepository.existsByCode(request.code())) {
+        if (!supplier.getName().equals(name)
+                && supplierRepository.existsByName(name)) {
             throw new DuplicateResourceException(
-                    "Supplier code already exists: " + request.code()
-            );
-        }
-
-        if (!supplier.getName().equals(request.name())
-                && supplierRepository.existsByName(request.name())) {
-            throw new DuplicateResourceException(
-                    "Supplier name already exists: " + request.name()
+                    "Supplier name already exists: " + name
             );
         }
     }
