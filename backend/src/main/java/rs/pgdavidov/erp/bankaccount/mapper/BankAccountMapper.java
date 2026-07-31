@@ -9,10 +9,13 @@ import rs.pgdavidov.erp.bankaccount.entity.BankAccount;
 @Component
 public class BankAccountMapper {
 
-    public BankAccount toEntity(BankAccountRequest request) {
+    public BankAccount toEntity(
+            BankAccountRequest request,
+            String code
+    ) {
         BankAccount bankAccount = new BankAccount();
 
-        bankAccount.setCode(request.code());
+        bankAccount.setCode(code);
         bankAccount.setBankName(request.bankName());
         bankAccount.setAccountNumber(request.accountNumber());
         bankAccount.setCurrencyCode(request.currencyCode());

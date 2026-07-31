@@ -7,10 +7,6 @@ import jakarta.validation.constraints.Size;
 public record BankAccountRequest(
 
         @NotBlank
-        @Size(max = 30)
-        String code,
-
-        @NotBlank
         @Size(max = 150)
         String bankName,
 
