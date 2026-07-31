@@ -8,7 +8,9 @@ import rs.pgdavidov.erp.payment.entity.PaymentMethod;
 @Component
 public class PaymentMethodMapper {
 
-    public PaymentMethodResponse toResponse(PaymentMethod paymentMethod) {
+    public PaymentMethodResponse toResponse(
+            PaymentMethod paymentMethod
+    ) {
         return new PaymentMethodResponse(
                 paymentMethod.getId(),
                 paymentMethod.getCode(),
@@ -19,11 +21,15 @@ public class PaymentMethodMapper {
         );
     }
 
-    public PaymentMethod toEntity(PaymentMethodRequest request) {
+    public PaymentMethod toEntity(
+            PaymentMethodRequest request,
+            String code
+    ) {
         PaymentMethod paymentMethod = new PaymentMethod();
-        paymentMethod.setCode(request.code());
+        paymentMethod.setCode(code);
         paymentMethod.setName(request.name());
         paymentMethod.setActive(request.active());
+
         return paymentMethod;
     }
 
@@ -31,7 +37,6 @@ public class PaymentMethodMapper {
             PaymentMethod paymentMethod,
             PaymentMethodRequest request
     ) {
-        paymentMethod.setCode(request.code());
         paymentMethod.setName(request.name());
         paymentMethod.setActive(request.active());
     }
