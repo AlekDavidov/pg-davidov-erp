@@ -1,18 +1,126 @@
-# PG Davidov ERP — Sprint 1 Foundation
+# PG Davidov ERP
 
-Pokretljiv foundation: PostgreSQL, Spring Boot, Flyway, Vue, PrimeVue i Docker Compose.
+ERP sistem za upravljanje poljoprivrednim gazdinstvom.
 
-## Pokretanje
+## Tehnologije
 
-## Local development
+- Java 21
+- Spring Boot
+- PostgreSQL
+- Flyway
+- Vue 3
+- PrimeVue
+- Docker
+- Docker Compose
 
-Za svakodnevni razvoj preporučuje se sledeći setup:
+---
 
-| Servis | Način pokretanja |
-|--------|------------------|
+# Pokretanje projekta
+
+## Preduslovi
+
+Potrebno je samo:
+
+- Docker Desktop
+
+Nije potrebno lokalno instalirati:
+
+- Java
+- Maven
+- Node.js
+- PostgreSQL
+
+---
+
+## Prvo pokretanje
+
+Kopirati konfiguraciju:
+
+```bash
+copy .env.example .env
+```
+
+Pokrenuti aplikaciju:
+
+```bash
+start.bat
+```
+
+Prilikom prvog pokretanja Docker će preuzeti potrebne image-e i napraviti bazu.
+
+---
+
+## Adrese
+
+Frontend
+
+```
+http://localhost
+```
+
+Backend API
+
+```
+http://localhost:8090
+```
+
+Swagger
+
+```
+http://localhost:8090/swagger-ui/index.html
+```
+
+Health
+
+```
+http://localhost:8090/actuator/health
+```
+
+PgAdmin (opciono)
+
+```
+http://localhost:5050
+```
+
+Pokretanje:
+
+```bash
+docker compose --profile tools up -d pgadmin
+```
+
+---
+
+# Zaustavljanje
+
+```bash
+stop.bat
+```
+
+---
+
+# Backup baze
+
+```bash
+backup.bat
+```
+
+Backup se čuva u:
+
+```
+backups/
+```
+
+---
+
+# Lokalni razvoj
+
+Za razvoj se preporučuje sledeći način rada:
+
+| Servis | Pokretanje |
+|--------|------------|
 | PostgreSQL | Docker |
 | Backend | IntelliJ |
-| Frontend | npm run dev |
+| Frontend | Vite (`npm run dev`) |
 
 ### PostgreSQL
 
@@ -28,7 +136,7 @@ Pokrenuti iz IntelliJ:
 PgDavidovErpApplication
 ```
 
-Adresa:
+Backend:
 
 ```
 http://localhost:8090
@@ -42,33 +150,49 @@ npm install
 npm run dev
 ```
 
-Adresa:
+Frontend:
 
 ```
 http://localhost:5173
 ```
 
-Napomena:
+---
 
-Docker backend i Docker frontend nisu predviđeni za svakodnevni razvoj, jer Docker frontend automatski pokreće Docker backend koji zauzima port 8090.
+# Docker razvoj
 
-1. Kopiraj `.env.example` u `.env` i promeni lozinke.
-2. Pokreni `docker compose up --build -d`.
-3. Otvori aplikaciju na http://localhost:8081.
+Kompletna aplikacija može da radi i potpuno kroz Docker:
 
-Backend health: http://localhost:8080/actuator/health  
-Swagger UI: http://localhost:8080/swagger-ui.html
+```bash
+start.bat
+```
 
-PgAdmin je opcion: `docker compose --profile tools up -d pgadmin`, zatim http://localhost:5050.
+ili
 
-Gašenje: `docker compose down`. Brisanje lokalne baze: `docker compose down -v`.
+```bash
+docker compose up --build -d
+```
 
-## Trenutni obuhvat
+---
 
-- kompletna V1 Flyway šema iz Sprinta 0;
-- Spring Boot backend skeleton, health i OpenAPI;
-- Vue aplikacija sa navigacijom i dark mode-om;
-- PostgreSQL persistent volume;
-- opcion PgAdmin profil.
+# Trenutno implementirano
 
-Sledeći korak: Organizations, Suppliers i Categories kao prvi kompletni vertikalni slice.
+- Spring Boot backend
+- PostgreSQL
+- Flyway migracije
+- Docker Compose
+- Suppliers CRUD
+- Transactions CRUD
+- Categories CRUD
+- Payment Methods CRUD
+- Bank Accounts CRUD
+
+---
+
+# Sledeći koraci
+
+- Invoices
+- Documents
+- Dashboard
+- Reports
+- Bank Import
+- Settings
