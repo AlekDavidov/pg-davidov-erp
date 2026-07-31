@@ -22,7 +22,6 @@ public class CategoryMapper {
 
     public Category toEntity(CategoryRequest request) {
         Category category = new Category();
-        category.setCode(request.code());
         category.setName(request.name());
         category.setCategoryType(request.categoryType());
         category.setActive(request.active());
@@ -30,7 +29,6 @@ public class CategoryMapper {
     }
 
     public void updateEntity(Category category, CategoryRequest request) {
-        category.setCode(request.code());
         category.setName(request.name());
         category.setCategoryType(request.categoryType());
         category.setActive(request.active());
