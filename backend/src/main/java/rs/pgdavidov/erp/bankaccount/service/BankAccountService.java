@@ -10,7 +10,6 @@ import rs.pgdavidov.erp.bankaccount.dto.BankAccountUpdateRequest;
 import rs.pgdavidov.erp.bankaccount.entity.BankAccount;
 import rs.pgdavidov.erp.bankaccount.mapper.BankAccountMapper;
 import rs.pgdavidov.erp.bankaccount.repository.BankAccountRepository;
-import rs.pgdavidov.erp.common.exception.DuplicateResourceException;
 import rs.pgdavidov.erp.common.exception.ResourceNotFoundException;
 
 import java.util.List;
@@ -21,6 +20,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BankAccountService {
+
+    private static final String CODE_PREFIX = "BAC";
 
     private final BankAccountRepository bankAccountRepository;
     private final BankAccountMapper bankAccountMapper;
@@ -39,20 +40,17 @@ public class BankAccountService {
 
     @Transactional
     public BankAccountResponse create(BankAccountRequest request) {
-        String normalizedCode = normalizeCode(request.code());
+        String code = generateCode();
 
-        if (bankAccountRepository.existsByCode(normalizedCode)) {
-            throw new DuplicateResourceException(
-                    "Bank account with code '" + normalizedCode + "' already exists."
-            );
-        }
+        BankAccount bankAccount =
+                bankAccountMapper.toEntity(request, code);
 
-        BankAccount bankAccount = bankAccountMapper.toEntity(request);
+        bankAccount.setCurrencyCode(
+                normalizeCurrencyCode(request.currencyCode())
+        );
 
-        bankAccount.setCode(normalizedCode);
-        bankAccount.setCurrencyCode(normalizeCurrencyCode(request.currencyCode()));
-
-        BankAccount savedBankAccount = bankAccountRepository.saveAndFlush(bankAccount);
+        BankAccount savedBankAccount =
+                bankAccountRepository.saveAndFlush(bankAccount);
 
         return bankAccountMapper.toResponse(savedBankAccount);
     }
@@ -65,9 +63,13 @@ public class BankAccountService {
         BankAccount bankAccount = findById(id);
 
         bankAccountMapper.updateEntity(bankAccount, request);
-        bankAccount.setCurrencyCode(normalizeCurrencyCode(request.currencyCode()));
 
-        BankAccount savedBankAccount = bankAccountRepository.saveAndFlush(bankAccount);
+        bankAccount.setCurrencyCode(
+                normalizeCurrencyCode(request.currencyCode())
+        );
+
+        BankAccount savedBankAccount =
+                bankAccountRepository.saveAndFlush(bankAccount);
 
         return bankAccountMapper.toResponse(savedBankAccount);
     }
@@ -85,11 +87,16 @@ public class BankAccountService {
                 ));
     }
 
-    private String normalizeCode(String code) {
-        return code.trim().toUpperCase(Locale.ROOT);
+    private String generateCode() {
+        long sequenceValue =
+                bankAccountRepository.getNextCodeSequenceValue();
+
+        return CODE_PREFIX + String.format("%04d", sequenceValue);
     }
 
     private String normalizeCurrencyCode(String currencyCode) {
-        return currencyCode.trim().toUpperCase(Locale.ROOT);
+        return currencyCode
+                .trim()
+                .toUpperCase(Locale.ROOT);
     }
 }
