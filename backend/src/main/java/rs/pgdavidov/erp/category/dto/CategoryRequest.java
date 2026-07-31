@@ -8,10 +8,6 @@ import rs.pgdavidov.erp.category.entity.CategoryType;
 public record CategoryRequest(
 
         @NotBlank
-        @Size(max = 30)
-        String code,
-
-        @NotBlank
         @Size(max = 100)
         String name,
 

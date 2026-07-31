@@ -22,6 +22,9 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class CategoryService {
 
+    private static final String CATEGORY_CODE_PREFIX = "CAT";
+    private static final int CATEGORY_CODE_PADDING = 4;
+
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
 
@@ -54,12 +57,6 @@ public class CategoryService {
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
 
-        if (categoryRepository.existsByCode(request.code())) {
-            throw new DuplicateResourceException(
-                    "Category code already exists: " + request.code()
-            );
-        }
-
         if (categoryRepository.existsByNameAndCategoryType(
                 request.name(),
                 request.categoryType()
@@ -71,6 +68,7 @@ public class CategoryService {
         }
 
         Category category = categoryMapper.toEntity(request);
+        category.setCode(generateCategoryCode());
 
         return categoryMapper.toResponse(
                 categoryRepository.saveAndFlush(category)
@@ -82,14 +80,6 @@ public class CategoryService {
 
         Category category = getEntity(id);
 
-        if (!category.getCode().equals(request.code())
-                && categoryRepository.existsByCode(request.code())) {
-
-            throw new DuplicateResourceException(
-                    "Category code already exists: " + request.code()
-            );
-        }
-
         boolean changed =
                 !category.getName().equals(request.name())
                         || category.getCategoryType() != request.categoryType();
@@ -99,7 +89,6 @@ public class CategoryService {
                 request.name(),
                 request.categoryType()
         )) {
-
             throw new DuplicateResourceException(
                     "Category name already exists for type: "
                             + request.categoryType()
@@ -124,5 +113,15 @@ public class CategoryService {
                         new ResourceNotFoundException(
                                 "Category not found: " + id
                         ));
+    }
+
+    private String generateCategoryCode() {
+        long sequenceValue = categoryRepository.getNextCodeSequenceValue();
+
+        return CATEGORY_CODE_PREFIX
+                + String.format(
+                "%0" + CATEGORY_CODE_PADDING + "d",
+                sequenceValue
+        );
     }
 }
