@@ -15,9 +15,7 @@ httpClient.interceptors.response.use(
 
         if (!response) {
             return Promise.reject(
-                new Error(
-                    'Backend service is currently unavailable.'
-                )
+                new Error('Backend service is currently unavailable.')
             )
         }
 

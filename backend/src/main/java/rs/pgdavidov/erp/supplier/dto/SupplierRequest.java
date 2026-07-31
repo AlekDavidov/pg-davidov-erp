@@ -3,15 +3,12 @@ package rs.pgdavidov.erp.supplier.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
 public record SupplierRequest(
-
-        @NotBlank
-        @Size(max = 30)
-        String code,
 
         @NotBlank
         @Size(max = 200)
@@ -24,6 +21,7 @@ public record SupplierRequest(
         UUID paymentMethodId,
 
         @NotNull
+        @PositiveOrZero
         Integer paymentTerms,
 
         @Size(max = 20)

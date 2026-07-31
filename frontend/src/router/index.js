@@ -2,12 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import DashboardView from '../views/DashboardView.vue'
 import PlaceholderView from '../views/PlaceholderView.vue'
+import SuppliersView from '../views/SuppliersView.vue'
 import TransactionsView from '../views/TransactionsView.vue'
 
 const placeholderRoutes = [
     { path: 'invoices', title: 'Invoices' },
     { path: 'documents', title: 'Documents' },
-    { path: 'suppliers', title: 'Suppliers' },
     { path: 'categories', title: 'Categories' },
     { path: 'bank-accounts', title: 'Bank Accounts' },
     { path: 'bank-import', title: 'Bank Import' },
@@ -20,10 +20,17 @@ export default createRouter({
     routes: [
         {
             path: '/',
+            name: 'dashboard',
             component: DashboardView
         },
         {
+            path: '/suppliers',
+            name: 'suppliers',
+            component: SuppliersView
+        },
+        {
             path: '/transactions',
+            name: 'transactions',
             component: TransactionsView
         },
         ...placeholderRoutes.map(route => ({

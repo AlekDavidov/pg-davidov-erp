@@ -11,7 +11,6 @@ import rs.pgdavidov.erp.supplier.entity.Supplier;
 public class SupplierMapper {
 
     public SupplierResponse toResponse(Supplier supplier) {
-
         return new SupplierResponse(
                 supplier.getId(),
                 supplier.getCode(),
@@ -48,11 +47,13 @@ public class SupplierMapper {
 
     public Supplier toEntity(
             SupplierRequest request,
+            String code,
             Category category,
             PaymentMethod paymentMethod
     ) {
-
         Supplier supplier = new Supplier();
+
+        supplier.setCode(code);
 
         updateEntity(
                 supplier,
@@ -70,8 +71,6 @@ public class SupplierMapper {
             Category category,
             PaymentMethod paymentMethod
     ) {
-
-        supplier.setCode(request.code());
         supplier.setName(request.name());
         supplier.setDefaultCategory(category);
         supplier.setPaymentMethod(paymentMethod);
