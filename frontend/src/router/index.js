@@ -1,1 +1,37 @@
-import {createRouter,createWebHistory} from 'vue-router';import DashboardView from '../views/DashboardView.vue';import PlaceholderView from '../views/PlaceholderView.vue';const titles=['Transactions','Invoices','Documents','Suppliers','Categories','Bank Accounts','Bank Import','Reports','Settings'];const paths=['transactions','invoices','documents','suppliers','categories','bank-accounts','bank-import','reports','settings'];export default createRouter({history:createWebHistory(),routes:[{path:'/',component:DashboardView},...paths.map((p,i)=>({path:`/${p}`,component:PlaceholderView,props:{title:titles[i]}}))]});
+import { createRouter, createWebHistory } from 'vue-router'
+
+import DashboardView from '../views/DashboardView.vue'
+import PlaceholderView from '../views/PlaceholderView.vue'
+import TransactionsView from '../views/TransactionsView.vue'
+
+const placeholderRoutes = [
+    { path: 'invoices', title: 'Invoices' },
+    { path: 'documents', title: 'Documents' },
+    { path: 'suppliers', title: 'Suppliers' },
+    { path: 'categories', title: 'Categories' },
+    { path: 'bank-accounts', title: 'Bank Accounts' },
+    { path: 'bank-import', title: 'Bank Import' },
+    { path: 'reports', title: 'Reports' },
+    { path: 'settings', title: 'Settings' }
+]
+
+export default createRouter({
+    history: createWebHistory(),
+    routes: [
+        {
+            path: '/',
+            component: DashboardView
+        },
+        {
+            path: '/transactions',
+            component: TransactionsView
+        },
+        ...placeholderRoutes.map(route => ({
+            path: `/${route.path}`,
+            component: PlaceholderView,
+            props: {
+                title: route.title
+            }
+        }))
+    ]
+})
