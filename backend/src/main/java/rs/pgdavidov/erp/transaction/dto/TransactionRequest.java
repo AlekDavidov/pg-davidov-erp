@@ -12,10 +12,6 @@ import java.util.UUID;
 
 public record TransactionRequest(
 
-        @NotBlank
-        @Size(max = 40)
-        String transactionCode,
-
         @NotNull
         LocalDate transactionDate,
 

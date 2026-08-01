@@ -9,10 +9,13 @@ import rs.pgdavidov.erp.transaction.entity.Transaction;
 @Component
 public class TransactionMapper {
 
-    public Transaction toEntity(TransactionRequest request) {
+    public Transaction toEntity(
+            TransactionRequest request,
+            String transactionCode
+    ) {
         Transaction transaction = new Transaction();
 
-        transaction.setTransactionCode(request.transactionCode());
+        transaction.setTransactionCode(transactionCode);
         transaction.setTransactionDate(request.transactionDate());
         transaction.setCurrencyCode(request.currencyCode());
         transaction.setDebit(request.debit());
