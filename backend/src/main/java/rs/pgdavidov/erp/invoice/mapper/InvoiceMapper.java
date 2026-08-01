@@ -41,11 +41,12 @@ public class InvoiceMapper {
 
     public Invoice toEntity(
             InvoiceRequest request,
-            Supplier supplier
+            Supplier supplier,
+            String invoiceCode
     ) {
         Invoice invoice = new Invoice();
 
-        invoice.setInvoiceCode(request.getInvoiceCode());
+        invoice.setInvoiceCode(invoiceCode);
         invoice.setInvoiceNumber(request.getInvoiceNumber());
         invoice.setSupplier(supplier);
         invoice.setInvoiceDate(request.getInvoiceDate());
@@ -62,7 +63,6 @@ public class InvoiceMapper {
             InvoiceRequest request,
             Supplier supplier
     ) {
-        invoice.setInvoiceCode(request.getInvoiceCode());
         invoice.setInvoiceNumber(request.getInvoiceNumber());
         invoice.setSupplier(supplier);
         invoice.setInvoiceDate(request.getInvoiceDate());
