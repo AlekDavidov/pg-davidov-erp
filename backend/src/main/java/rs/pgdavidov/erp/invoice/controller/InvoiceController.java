@@ -2,6 +2,7 @@ package rs.pgdavidov.erp.invoice.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -61,31 +62,35 @@ public class InvoiceController {
     public ResponseEntity<InvoiceResponse> findById(
             @PathVariable UUID id
     ) {
-        InvoiceResponse response = invoiceService.findById(id);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                invoiceService.findById(id)
+        );
     }
 
     @PostMapping
     public ResponseEntity<InvoiceResponse> create(
-            @Valid @RequestBody InvoiceRequest request
+            @Valid
+            @RequestBody InvoiceRequest request
     ) {
-        InvoiceResponse response = invoiceService.create(request);
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(response);
+                .body(
+                        invoiceService.create(request)
+                );
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<InvoiceResponse> update(
             @PathVariable UUID id,
-            @Valid @RequestBody InvoiceRequest request
+            @Valid
+            @RequestBody InvoiceRequest request
     ) {
-        InvoiceResponse response =
-                invoiceService.update(id, request);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                invoiceService.update(
+                        id,
+                        request
+                )
+        );
     }
 
     @DeleteMapping("/{id}")
@@ -94,7 +99,9 @@ public class InvoiceController {
     ) {
         invoiceService.delete(id);
 
-        return ResponseEntity.noContent().build();
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 
     @PostMapping(
@@ -104,14 +111,19 @@ public class InvoiceController {
     public ResponseEntity<DocumentResponse> uploadDocument(
             @PathVariable UUID invoiceId,
             @RequestParam
-            @NotBlank(message = "Document code is required.")
-            String documentCode,
-            @RequestPart("file") MultipartFile file
+            @NotBlank(message = "Document display name is required.")
+            @Size(
+                    max = 255,
+                    message = "Document display name cannot exceed 255 characters."
+            )
+            String displayName,
+            @RequestPart("file")
+            MultipartFile file
     ) {
         DocumentResponse response =
                 invoiceService.uploadDocument(
                         invoiceId,
-                        documentCode,
+                        displayName,
                         file
                 );
 
@@ -124,13 +136,16 @@ public class InvoiceController {
     public ResponseEntity<List<DocumentResponse>> getDocuments(
             @PathVariable UUID invoiceId
     ) {
-        List<DocumentResponse> response =
-                invoiceService.getDocuments(invoiceId);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                invoiceService.getDocuments(
+                        invoiceId
+                )
+        );
     }
 
-    @DeleteMapping("/{invoiceId}/documents/{documentId}")
+    @DeleteMapping(
+            "/{invoiceId}/documents/{documentId}"
+    )
     public ResponseEntity<Void> removeDocument(
             @PathVariable UUID invoiceId,
             @PathVariable UUID documentId
@@ -140,36 +155,41 @@ public class InvoiceController {
                 documentId
         );
 
-        return ResponseEntity.noContent().build();
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 
     @PostMapping("/{invoiceId}/payments")
     public ResponseEntity<PaymentResponse> attachPayment(
             @PathVariable UUID invoiceId,
-            @Valid @RequestBody PaymentRequest request
+            @Valid
+            @RequestBody PaymentRequest request
     ) {
-        PaymentResponse response =
-                invoicePaymentService.attachPayment(
-                        invoiceId,
-                        request
-                );
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(response);
+                .body(
+                        invoicePaymentService
+                                .attachPayment(
+                                        invoiceId,
+                                        request
+                                )
+                );
     }
 
     @GetMapping("/{invoiceId}/payments")
     public ResponseEntity<List<PaymentResponse>> getPayments(
             @PathVariable UUID invoiceId
     ) {
-        List<PaymentResponse> response =
-                invoicePaymentService.getPayments(invoiceId);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                invoicePaymentService
+                        .getPayments(invoiceId)
+        );
     }
 
-    @DeleteMapping("/{invoiceId}/payments/{paymentId}")
+    @DeleteMapping(
+            "/{invoiceId}/payments/{paymentId}"
+    )
     public ResponseEntity<Void> detachPayment(
             @PathVariable UUID invoiceId,
             @PathVariable UUID paymentId
@@ -179,6 +199,8 @@ public class InvoiceController {
                 paymentId
         );
 
-        return ResponseEntity.noContent().build();
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 }

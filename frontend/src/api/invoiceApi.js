@@ -66,7 +66,7 @@ export const invoiceApi = {
 
     async uploadDocument(
         invoiceId,
-        documentCode,
+        displayName,
         file
     ) {
         const formData = new FormData()
@@ -78,10 +78,11 @@ export const invoiceApi = {
             formData,
             {
                 params: {
-                    documentCode
+                    displayName
                 },
                 headers: {
-                    'Content-Type': 'multipart/form-data'
+                    'Content-Type':
+                        'multipart/form-data'
                 }
             }
         )

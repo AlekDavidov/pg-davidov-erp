@@ -55,7 +55,11 @@ public class InvoiceService {
             String sortDirection
     ) {
         Sort sort = createSort(sortBy, sortDirection);
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                sort
+        );
 
         Page<Invoice> invoicePage =
                 invoiceRepository.findAll(pageable);
@@ -75,15 +79,19 @@ public class InvoiceService {
     @Transactional
     public InvoiceResponse create(InvoiceRequest request) {
         validateDueDate(request);
+
         validateSupplierInvoiceNumberForCreate(
                 request.getSupplierId(),
                 request.getInvoiceNumber()
         );
 
         Supplier supplier =
-                findSupplierById(request.getSupplierId());
+                findSupplierById(
+                        request.getSupplierId()
+                );
 
-        String invoiceCode = generateInvoiceCode();
+        String invoiceCode =
+                generateInvoiceCode();
 
         Invoice invoice =
                 invoiceMapper.toEntity(
@@ -93,7 +101,9 @@ public class InvoiceService {
                 );
 
         Invoice savedInvoice =
-                invoiceRepository.saveAndFlush(invoice);
+                invoiceRepository.saveAndFlush(
+                        invoice
+                );
 
         return toResponse(savedInvoice);
     }
@@ -103,9 +113,11 @@ public class InvoiceService {
             UUID id,
             InvoiceRequest request
     ) {
-        Invoice invoice = findInvoiceById(id);
+        Invoice invoice =
+                findInvoiceById(id);
 
         validateDueDate(request);
+
         validateSupplierInvoiceNumberForUpdate(
                 invoice,
                 request.getSupplierId(),
@@ -113,7 +125,9 @@ public class InvoiceService {
         );
 
         Supplier supplier =
-                findSupplierById(request.getSupplierId());
+                findSupplierById(
+                        request.getSupplierId()
+                );
 
         invoiceMapper.updateEntity(
                 invoice,
@@ -122,7 +136,9 @@ public class InvoiceService {
         );
 
         Invoice savedInvoice =
-                invoiceRepository.saveAndFlush(invoice);
+                invoiceRepository.saveAndFlush(
+                        invoice
+                );
 
         return toResponse(savedInvoice);
     }
@@ -130,14 +146,15 @@ public class InvoiceService {
     @Transactional
     public DocumentResponse uploadDocument(
             UUID invoiceId,
-            String documentCode,
+            String displayName,
             MultipartFile file
     ) {
-        Invoice invoice = findInvoiceById(invoiceId);
+        Invoice invoice =
+                findInvoiceById(invoiceId);
 
         Document document =
                 documentService.createDocument(
-                        documentCode,
+                        displayName,
                         file
                 );
 
@@ -148,20 +165,29 @@ public class InvoiceService {
                             document
                     );
 
-            invoiceDocumentRepository.saveAndFlush(invoiceDocument);
+            invoiceDocumentRepository.saveAndFlush(
+                    invoiceDocument
+            );
 
-            return documentService.toResponse(document);
+            return documentService.toResponse(
+                    document
+            );
         } catch (RuntimeException exception) {
             documentService.deleteDocument(document);
+
             throw exception;
         }
     }
 
-    public List<DocumentResponse> getDocuments(UUID invoiceId) {
+    public List<DocumentResponse> getDocuments(
+            UUID invoiceId
+    ) {
         findInvoiceById(invoiceId);
 
         return invoiceDocumentRepository
-                .findAllByInvoice_IdOrderByDocument_CreatedAtDesc(invoiceId)
+                .findAllByInvoice_IdOrderByDocument_CreatedAtDesc(
+                        invoiceId
+                )
                 .stream()
                 .map(InvoiceDocument::getDocument)
                 .map(documentService::toResponse)
@@ -191,31 +217,45 @@ public class InvoiceService {
                                 )
                         );
 
-        Document document = invoiceDocument.getDocument();
+        Document document =
+                invoiceDocument.getDocument();
 
-        invoiceDocumentRepository.delete(invoiceDocument);
+        invoiceDocumentRepository.delete(
+                invoiceDocument
+        );
+
         invoiceDocumentRepository.flush();
 
         boolean attachedToAnotherInvoice =
                 invoiceDocumentRepository
-                        .countByDocument_Id(documentId) > 0;
+                        .countByDocument_Id(
+                                documentId
+                        ) > 0;
 
         boolean attachedToTransaction =
                 documentRepository
-                        .existsTransactionDocumentByDocumentId(documentId);
+                        .existsTransactionDocumentByDocumentId(
+                                documentId
+                        );
 
-        if (!attachedToAnotherInvoice && !attachedToTransaction) {
-            documentService.deleteDocument(document);
+        if (!attachedToAnotherInvoice
+                && !attachedToTransaction) {
+            documentService.deleteDocument(
+                    document
+            );
         }
     }
 
     @Transactional
     public void delete(UUID id) {
-        Invoice invoice = findInvoiceById(id);
+        Invoice invoice =
+                findInvoiceById(id);
 
         List<Document> attachedDocuments =
                 invoiceDocumentRepository
-                        .findAllByInvoice_IdOrderByDocument_CreatedAtDesc(id)
+                        .findAllByInvoice_IdOrderByDocument_CreatedAtDesc(
+                                id
+                        )
                         .stream()
                         .map(InvoiceDocument::getDocument)
                         .toList();
@@ -224,23 +264,33 @@ public class InvoiceService {
         invoiceRepository.flush();
 
         for (Document document : attachedDocuments) {
-            UUID documentId = document.getId();
+            UUID documentId =
+                    document.getId();
 
             boolean attachedToAnotherInvoice =
                     invoiceDocumentRepository
-                            .countByDocument_Id(documentId) > 0;
+                            .countByDocument_Id(
+                                    documentId
+                            ) > 0;
 
             boolean attachedToTransaction =
                     documentRepository
-                            .existsTransactionDocumentByDocumentId(documentId);
+                            .existsTransactionDocumentByDocumentId(
+                                    documentId
+                            );
 
-            if (!attachedToAnotherInvoice && !attachedToTransaction) {
-                documentService.deleteDocument(document);
+            if (!attachedToAnotherInvoice
+                    && !attachedToTransaction) {
+                documentService.deleteDocument(
+                        document
+                );
             }
         }
     }
 
-    private InvoiceResponse toResponse(Invoice invoice) {
+    private InvoiceResponse toResponse(
+            Invoice invoice
+    ) {
         BigDecimal paidAmount =
                 invoicePaymentRepository
                         .sumAmountByInvoiceId(
@@ -281,7 +331,9 @@ public class InvoiceService {
                 );
     }
 
-    private Supplier findSupplierById(UUID supplierId) {
+    private Supplier findSupplierById(
+            UUID supplierId
+    ) {
         return supplierRepository
                 .findById(supplierId)
                 .orElseThrow(() ->
@@ -295,7 +347,8 @@ public class InvoiceService {
 
     private String generateInvoiceCode() {
         long sequenceValue =
-                invoiceRepository.getNextCodeSequenceValue();
+                invoiceRepository
+                        .getNextCodeSequenceValue();
 
         return CODE_PREFIX + String.format(
                 "%06d",
@@ -334,14 +387,19 @@ public class InvoiceService {
                         .getId();
 
         boolean supplierChanged =
-                !existingSupplierId.equals(requestedSupplierId);
+                !existingSupplierId.equals(
+                        requestedSupplierId
+                );
 
         boolean invoiceNumberChanged =
                 !existingInvoice
                         .getInvoiceNumber()
-                        .equals(requestedInvoiceNumber);
+                        .equals(
+                                requestedInvoiceNumber
+                        );
 
-        if (!supplierChanged && !invoiceNumberChanged) {
+        if (!supplierChanged
+                && !invoiceNumberChanged) {
             return;
         }
 
@@ -361,14 +419,18 @@ public class InvoiceService {
         }
     }
 
-    private void validateDueDate(InvoiceRequest request) {
+    private void validateDueDate(
+            InvoiceRequest request
+    ) {
         if (request.getDueDate() == null) {
             return;
         }
 
         if (request
                 .getDueDate()
-                .isBefore(request.getInvoiceDate())) {
+                .isBefore(
+                        request.getInvoiceDate()
+                )) {
             throw new IllegalArgumentException(
                     "Due date cannot be before invoice date."
             );
@@ -379,31 +441,49 @@ public class InvoiceService {
             String sortBy,
             String sortDirection
     ) {
-        String resolvedSortBy = resolveSortBy(sortBy);
+        String resolvedSortBy =
+                resolveSortBy(sortBy);
 
         Sort.Direction direction =
-                "desc".equalsIgnoreCase(sortDirection)
+                "desc".equalsIgnoreCase(
+                        sortDirection
+                )
                         ? Sort.Direction.DESC
                         : Sort.Direction.ASC;
 
-        return Sort.by(direction, resolvedSortBy);
+        return Sort.by(
+                direction,
+                resolvedSortBy
+        );
     }
 
-    private String resolveSortBy(String sortBy) {
-        if (sortBy == null || sortBy.isBlank()) {
+    private String resolveSortBy(
+            String sortBy
+    ) {
+        if (sortBy == null
+                || sortBy.isBlank()) {
             return "invoiceDate";
         }
 
-        return switch (sortBy.toLowerCase(Locale.ROOT)) {
+        return switch (
+                sortBy.toLowerCase(Locale.ROOT)
+                ) {
             case "id" -> "id";
-            case "invoicecode", "invoice_code" -> "invoiceCode";
-            case "invoicenumber", "invoice_number" -> "invoiceNumber";
-            case "invoicedate", "invoice_date" -> "invoiceDate";
-            case "duedate", "due_date" -> "dueDate";
+            case "invoicecode",
+                 "invoice_code" -> "invoiceCode";
+            case "invoicenumber",
+                 "invoice_number" -> "invoiceNumber";
+            case "invoicedate",
+                 "invoice_date" -> "invoiceDate";
+            case "duedate",
+                 "due_date" -> "dueDate";
             case "amount" -> "amount";
-            case "currencycode", "currency_code" -> "currencyCode";
-            case "createdat", "created_at" -> "createdAt";
-            case "updatedat", "updated_at" -> "updatedAt";
+            case "currencycode",
+                 "currency_code" -> "currencyCode";
+            case "createdat",
+                 "created_at" -> "createdAt";
+            case "updatedat",
+                 "updated_at" -> "updatedAt";
             default -> "invoiceDate";
         };
     }
