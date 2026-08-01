@@ -16,10 +16,6 @@ import java.util.UUID;
 public class InvoiceRequest {
 
     @NotBlank
-    @Size(max = 40)
-    private String invoiceCode;
-
-    @NotBlank
     @Size(max = 150)
     private String invoiceNumber;
 

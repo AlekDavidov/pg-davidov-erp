@@ -37,6 +37,8 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class InvoiceService {
 
+    private static final String CODE_PREFIX = "INV";
+
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDocumentRepository invoiceDocumentRepository;
     private final InvoicePaymentRepository invoicePaymentRepository;
@@ -73,7 +75,6 @@ public class InvoiceService {
     @Transactional
     public InvoiceResponse create(InvoiceRequest request) {
         validateDueDate(request);
-        validateInvoiceCodeForCreate(request.getInvoiceCode());
         validateSupplierInvoiceNumberForCreate(
                 request.getSupplierId(),
                 request.getInvoiceNumber()
@@ -82,8 +83,14 @@ public class InvoiceService {
         Supplier supplier =
                 findSupplierById(request.getSupplierId());
 
+        String invoiceCode = generateInvoiceCode();
+
         Invoice invoice =
-                invoiceMapper.toEntity(request, supplier);
+                invoiceMapper.toEntity(
+                        request,
+                        supplier,
+                        invoiceCode
+                );
 
         Invoice savedInvoice =
                 invoiceRepository.saveAndFlush(invoice);
@@ -99,10 +106,6 @@ public class InvoiceService {
         Invoice invoice = findInvoiceById(id);
 
         validateDueDate(request);
-        validateInvoiceCodeForUpdate(
-                invoice,
-                request.getInvoiceCode()
-        );
         validateSupplierInvoiceNumberForUpdate(
                 invoice,
                 request.getSupplierId(),
@@ -290,37 +293,14 @@ public class InvoiceService {
                 );
     }
 
-    private void validateInvoiceCodeForCreate(
-            String invoiceCode
-    ) {
-        if (invoiceRepository.existsByInvoiceCode(invoiceCode)) {
-            throw new DuplicateResourceException(
-                    "Invoice with code '"
-                            + invoiceCode
-                            + "' already exists."
-            );
-        }
-    }
+    private String generateInvoiceCode() {
+        long sequenceValue =
+                invoiceRepository.getNextCodeSequenceValue();
 
-    private void validateInvoiceCodeForUpdate(
-            Invoice existingInvoice,
-            String requestedInvoiceCode
-    ) {
-        boolean invoiceCodeChanged =
-                !existingInvoice
-                        .getInvoiceCode()
-                        .equals(requestedInvoiceCode);
-
-        if (invoiceCodeChanged
-                && invoiceRepository.existsByInvoiceCode(
-                requestedInvoiceCode
-        )) {
-            throw new DuplicateResourceException(
-                    "Invoice with code '"
-                            + requestedInvoiceCode
-                            + "' already exists."
-            );
-        }
+        return CODE_PREFIX + String.format(
+                "%06d",
+                sequenceValue
+        );
     }
 
     private void validateSupplierInvoiceNumberForCreate(
