@@ -13,6 +13,7 @@ import Tag from 'primevue/tag'
 import Tooltip from 'primevue/tooltip'
 
 import { useBankAccountStore } from '../../stores/bankAccountStore'
+import { formatDateTime } from '../../utils/formatters'
 
 const vTooltip = Tooltip
 
@@ -34,17 +35,6 @@ const {
 
 const loadBankAccounts = async () => {
   await bankAccountStore.fetchBankAccounts()
-}
-
-const formatDateTime = value => {
-  if (!value) {
-    return '—'
-  }
-
-  return new Intl.DateTimeFormat('sr-RS', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  }).format(new Date(value))
 }
 
 const confirmDelete = bankAccount => {
@@ -183,10 +173,10 @@ onMounted(loadBankAccounts)
           <Tag
               :value="data.active ? 'Aktivan' : 'Neaktivan'"
               :severity="
-                data.active
-                    ? 'success'
-                    : 'secondary'
-              "
+              data.active
+                ? 'success'
+                : 'secondary'
+            "
           />
         </template>
       </Column>

@@ -13,6 +13,7 @@ import Tag from 'primevue/tag'
 import Tooltip from 'primevue/tooltip'
 
 import { useSupplierStore } from '../../stores/supplierStore'
+import { formatDateTime } from '../../utils/formatters'
 
 const vTooltip = Tooltip
 
@@ -76,17 +77,6 @@ const formatPaymentTerms = value => {
   }
 
   return `${value} dana`
-}
-
-const formatDateTime = value => {
-  if (!value) {
-    return '—'
-  }
-
-  return new Intl.DateTimeFormat('sr-RS', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  }).format(new Date(value))
 }
 
 const confirmDelete = supplier => {

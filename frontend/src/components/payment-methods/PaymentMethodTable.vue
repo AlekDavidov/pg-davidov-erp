@@ -13,6 +13,7 @@ import Tag from 'primevue/tag'
 import Tooltip from 'primevue/tooltip'
 
 import { usePaymentMethodStore } from '../../stores/paymentMethodStore'
+import { formatDateTime } from '../../utils/formatters'
 
 const vTooltip = Tooltip
 
@@ -34,17 +35,6 @@ const {
 
 const loadPaymentMethods = async () => {
   await paymentMethodStore.fetchPaymentMethods()
-}
-
-const formatDateTime = value => {
-  if (!value) {
-    return '—'
-  }
-
-  return new Intl.DateTimeFormat('sr-RS', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  }).format(new Date(value))
 }
 
 const confirmDelete = paymentMethod => {
@@ -163,10 +153,10 @@ onMounted(loadPaymentMethods)
           <Tag
               :value="data.active ? 'Aktivan' : 'Neaktivan'"
               :severity="
-                data.active
-                    ? 'success'
-                    : 'secondary'
-              "
+              data.active
+                ? 'success'
+                : 'secondary'
+            "
           />
         </template>
       </Column>

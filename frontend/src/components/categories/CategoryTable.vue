@@ -13,6 +13,7 @@ import Tag from 'primevue/tag'
 import Tooltip from 'primevue/tooltip'
 
 import { useCategoryStore } from '../../stores/categoryStore'
+import { formatDateTime } from '../../utils/formatters'
 
 const vTooltip = Tooltip
 
@@ -92,17 +93,6 @@ const getCategoryTypeSeverity = categoryType => {
   }
 
   return 'secondary'
-}
-
-const formatDateTime = value => {
-  if (!value) {
-    return '—'
-  }
-
-  return new Intl.DateTimeFormat('sr-RS', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  }).format(new Date(value))
 }
 
 const confirmDelete = category => {
@@ -244,10 +234,10 @@ onMounted(loadCategories)
           <Tag
               :value="data.active ? 'Aktivna' : 'Neaktivna'"
               :severity="
-                            data.active
-                                ? 'success'
-                                : 'secondary'
-                        "
+              data.active
+                ? 'success'
+                : 'secondary'
+            "
           />
         </template>
       </Column>

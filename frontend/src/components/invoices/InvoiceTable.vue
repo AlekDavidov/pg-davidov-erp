@@ -13,6 +13,12 @@ import Tag from 'primevue/tag'
 import Tooltip from 'primevue/tooltip'
 
 import { useInvoiceStore } from '../../stores/invoiceStore'
+import {
+  formatAmount,
+  formatDate,
+  formatInvoiceStatus,
+  getInvoiceStatusSeverity
+} from '../../utils/formatters'
 
 const vTooltip = Tooltip
 
@@ -69,55 +75,6 @@ const handleSort = async event => {
             ? 'desc'
             : 'asc'
   })
-}
-
-const formatDate = value => {
-  if (!value) {
-    return '—'
-  }
-
-  return new Intl.DateTimeFormat('sr-RS').format(
-      new Date(`${value}T00:00:00`)
-  )
-}
-
-const formatAmount = (value, currencyCode) => {
-  if (value === null || value === undefined) {
-    return '—'
-  }
-
-  return new Intl.NumberFormat('sr-RS', {
-    style: 'currency',
-    currency: currencyCode || 'RSD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value)
-}
-
-const formatStatus = status => {
-  const labels = {
-    OPEN: 'Otvorena',
-    OVERDUE: 'Dospela',
-    PARTIALLY_PAID: 'Delimično plaćena',
-    PARTIALLY_PAID_OVERDUE: 'Delimično plaćena - dospela',
-    PAID: 'Plaćena',
-    OVERPAID: 'Preplaćena'
-  }
-
-  return labels[status] || status || '—'
-}
-
-const getStatusSeverity = status => {
-  const severities = {
-    OPEN: 'info',
-    OVERDUE: 'danger',
-    PARTIALLY_PAID: 'warn',
-    PARTIALLY_PAID_OVERDUE: 'danger',
-    PAID: 'success',
-    OVERPAID: 'secondary'
-  }
-
-  return severities[status] || 'secondary'
 }
 
 const confirmDelete = invoice => {
@@ -296,8 +253,8 @@ onMounted(loadInvoices)
       >
         <template #body="{ data }">
           <Tag
-              :value="formatStatus(data.status)"
-              :severity="getStatusSeverity(data.status)"
+              :value="formatInvoiceStatus(data.status)"
+              :severity="getInvoiceStatusSeverity(data.status)"
           />
         </template>
       </Column>
