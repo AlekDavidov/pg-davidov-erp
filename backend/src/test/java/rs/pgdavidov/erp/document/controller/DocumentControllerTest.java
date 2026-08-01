@@ -35,10 +35,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DocumentControllerTest {
 
     private static final UUID DOCUMENT_ID =
-            UUID.fromString("9a20d918-a958-4e87-a075-812eebd9b90a");
+            UUID.fromString(
+                    "9a20d918-a958-4e87-a075-812eebd9b90a"
+            );
 
     private static final OffsetDateTime CREATED_AT =
-            OffsetDateTime.parse("2026-07-27T15:00:00+02:00");
+            OffsetDateTime.parse(
+                    "2026-07-27T15:00:00+02:00"
+            );
+
+    private static final String DISPLAY_NAME =
+            "Ulazna faktura za stočnu hranu";
 
     @Autowired
     private MockMvc mockMvc;
@@ -48,41 +55,80 @@ class DocumentControllerTest {
 
     @Test
     void shouldUploadDocument() throws Exception {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "invoice.pdf",
-                MediaType.APPLICATION_PDF_VALUE,
-                "test-pdf-content".getBytes(StandardCharsets.UTF_8)
-        );
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "invoice.pdf",
+                        MediaType.APPLICATION_PDF_VALUE,
+                        "test-pdf-content"
+                                .getBytes(
+                                        StandardCharsets.UTF_8
+                                )
+                );
 
-        DocumentResponse response = createDocumentResponse();
+        DocumentResponse response =
+                createDocumentResponse();
 
-        when(documentService.upload(
-                eq("DOC-2026-0001"),
-                any(MockMultipartFile.class)
-        )).thenReturn(response);
+        when(
+                documentService.upload(
+                        eq(DISPLAY_NAME),
+                        any(MockMultipartFile.class)
+                )
+        ).thenReturn(response);
 
         mockMvc.perform(
                         multipart("/api/documents")
                                 .file(file)
-                                .param("documentCode", "DOC-2026-0001")
+                                .param(
+                                        "displayName",
+                                        DISPLAY_NAME
+                                )
                 )
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(DOCUMENT_ID.toString()))
-                .andExpect(jsonPath("$.documentCode").value("DOC-2026-0001"))
-                .andExpect(jsonPath("$.filename").value("invoice.pdf"))
-                .andExpect(jsonPath("$.contentType").value("application/pdf"))
-                .andExpect(jsonPath("$.sizeBytes").value(16))
-                .andExpect(jsonPath("$.storagePath").value(
-                        "9a20d918-a958-4e87-a075-812eebd9b90a.pdf"
-                ))
-                .andExpect(jsonPath("$.checksumSha256").value(
-                        "0123456789abcdef0123456789abcdef"
-                                + "0123456789abcdef0123456789abcdef"
-                ));
+                .andExpect(
+                        status().isCreated()
+                )
+                .andExpect(
+                        jsonPath("$.id")
+                                .value(
+                                        DOCUMENT_ID.toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.documentCode")
+                                .value("DOC-000001")
+                )
+                .andExpect(
+                        jsonPath("$.displayName")
+                                .value(DISPLAY_NAME)
+                )
+                .andExpect(
+                        jsonPath("$.filename")
+                                .value("invoice.pdf")
+                )
+                .andExpect(
+                        jsonPath("$.contentType")
+                                .value("application/pdf")
+                )
+                .andExpect(
+                        jsonPath("$.sizeBytes")
+                                .value(16)
+                )
+                .andExpect(
+                        jsonPath("$.storagePath")
+                                .value(
+                                        "9a20d918-a958-4e87-a075-812eebd9b90a.pdf"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.checksumSha256")
+                                .value(
+                                        "0123456789abcdef0123456789abcdef"
+                                                + "0123456789abcdef0123456789abcdef"
+                                )
+                );
 
         verify(documentService).upload(
-                eq("DOC-2026-0001"),
+                eq(DISPLAY_NAME),
                 any(MockMultipartFile.class)
         );
     }
@@ -90,13 +136,36 @@ class DocumentControllerTest {
     @Test
     void shouldReturnAllDocuments() throws Exception {
         when(documentService.getAll())
-                .thenReturn(List.of(createDocumentResponse()));
+                .thenReturn(
+                        List.of(
+                                createDocumentResponse()
+                        )
+                );
 
-        mockMvc.perform(get("/api/documents"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(DOCUMENT_ID.toString()))
-                .andExpect(jsonPath("$[0].documentCode").value("DOC-2026-0001"))
-                .andExpect(jsonPath("$[0].filename").value("invoice.pdf"));
+        mockMvc.perform(
+                        get("/api/documents")
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        jsonPath("$[0].id")
+                                .value(
+                                        DOCUMENT_ID.toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$[0].documentCode")
+                                .value("DOC-000001")
+                )
+                .andExpect(
+                        jsonPath("$[0].displayName")
+                                .value(DISPLAY_NAME)
+                )
+                .andExpect(
+                        jsonPath("$[0].filename")
+                                .value("invoice.pdf")
+                );
 
         verify(documentService).getAll();
     }
@@ -104,64 +173,139 @@ class DocumentControllerTest {
     @Test
     void shouldReturnDocumentById() throws Exception {
         when(documentService.getById(DOCUMENT_ID))
-                .thenReturn(createDocumentResponse());
+                .thenReturn(
+                        createDocumentResponse()
+                );
 
-        mockMvc.perform(get("/api/documents/{id}", DOCUMENT_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(DOCUMENT_ID.toString()))
-                .andExpect(jsonPath("$.documentCode").value("DOC-2026-0001"));
+        mockMvc.perform(
+                        get(
+                                "/api/documents/{id}",
+                                DOCUMENT_ID
+                        )
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        jsonPath("$.id")
+                                .value(
+                                        DOCUMENT_ID.toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.documentCode")
+                                .value("DOC-000001")
+                )
+                .andExpect(
+                        jsonPath("$.displayName")
+                                .value(DISPLAY_NAME)
+                );
 
-        verify(documentService).getById(DOCUMENT_ID);
+        verify(documentService)
+                .getById(DOCUMENT_ID);
     }
 
     @Test
     void shouldReturnDocumentByCode() throws Exception {
-        when(documentService.getByDocumentCode("DOC-2026-0001"))
-                .thenReturn(createDocumentResponse());
+        when(
+                documentService.getByDocumentCode(
+                        "DOC-000001"
+                )
+        ).thenReturn(
+                createDocumentResponse()
+        );
 
         mockMvc.perform(
-                        get("/api/documents/code/{documentCode}", "DOC-2026-0001")
+                        get(
+                                "/api/documents/code/{documentCode}",
+                                "DOC-000001"
+                        )
                 )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(DOCUMENT_ID.toString()))
-                .andExpect(jsonPath("$.documentCode").value("DOC-2026-0001"));
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        jsonPath("$.id")
+                                .value(
+                                        DOCUMENT_ID.toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.documentCode")
+                                .value("DOC-000001")
+                )
+                .andExpect(
+                        jsonPath("$.displayName")
+                                .value(DISPLAY_NAME)
+                );
 
-        verify(documentService).getByDocumentCode("DOC-2026-0001");
+        verify(documentService)
+                .getByDocumentCode(
+                        "DOC-000001"
+                );
     }
 
     @Test
     void shouldDownloadDocument() throws Exception {
         byte[] fileContent =
-                "test-pdf-content".getBytes(StandardCharsets.UTF_8);
+                "test-pdf-content"
+                        .getBytes(
+                                StandardCharsets.UTF_8
+                        );
 
-        ByteArrayResource resource = new ByteArrayResource(fileContent);
+        ByteArrayResource resource =
+                new ByteArrayResource(
+                        fileContent
+                );
 
-        DocumentDownload download = new DocumentDownload(
-                "invoice.pdf",
-                MediaType.APPLICATION_PDF_VALUE,
-                (long) fileContent.length,
-                resource
-        );
+        DocumentDownload download =
+                new DocumentDownload(
+                        "invoice.pdf",
+                        MediaType.APPLICATION_PDF_VALUE,
+                        (long) fileContent.length,
+                        resource
+                );
 
-        when(documentService.download(DOCUMENT_ID))
-                .thenReturn(download);
+        when(
+                documentService.download(
+                        DOCUMENT_ID
+                )
+        ).thenReturn(download);
 
         mockMvc.perform(
-                        get("/api/documents/{id}/download", DOCUMENT_ID)
+                        get(
+                                "/api/documents/{id}/download",
+                                DOCUMENT_ID
+                        )
                 )
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
-                .andExpect(content().bytes(fileContent))
-                .andExpect(header().string(
-                        "Content-Disposition",
-                        Matchers.containsString("filename=\"invoice.pdf\"")
-                ))
-                .andExpect(header().longValue(
-                        "Content-Length",
-                        fileContent.length
-                ));
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        content().contentType(
+                                MediaType.APPLICATION_PDF
+                        )
+                )
+                .andExpect(
+                        content().bytes(fileContent)
+                )
+                .andExpect(
+                        header().string(
+                                "Content-Disposition",
+                                Matchers.containsString(
+                                        "filename=\"invoice.pdf\""
+                                )
+                        )
+                )
+                .andExpect(
+                        header().longValue(
+                                "Content-Length",
+                                fileContent.length
+                        )
+                );
 
-        verify(documentService).download(DOCUMENT_ID);
+        verify(documentService)
+                .download(DOCUMENT_ID);
     }
 
     @Test
@@ -171,18 +315,27 @@ class DocumentControllerTest {
                 .delete(DOCUMENT_ID);
 
         mockMvc.perform(
-                        delete("/api/documents/{id}", DOCUMENT_ID)
+                        delete(
+                                "/api/documents/{id}",
+                                DOCUMENT_ID
+                        )
                 )
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""));
+                .andExpect(
+                        status().isNoContent()
+                )
+                .andExpect(
+                        content().string("")
+                );
 
-        verify(documentService).delete(DOCUMENT_ID);
+        verify(documentService)
+                .delete(DOCUMENT_ID);
     }
 
     private DocumentResponse createDocumentResponse() {
         return new DocumentResponse(
                 DOCUMENT_ID,
-                "DOC-2026-0001",
+                "DOC-000001",
+                DISPLAY_NAME,
                 "invoice.pdf",
                 MediaType.APPLICATION_PDF_VALUE,
                 16L,

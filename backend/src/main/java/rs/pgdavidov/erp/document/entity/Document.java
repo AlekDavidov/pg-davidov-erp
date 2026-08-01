@@ -25,10 +25,24 @@ public class Document {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "document_code", nullable = false, unique = true)
+    @Column(
+            name = "document_code",
+            nullable = false,
+            unique = true
+    )
     private String documentCode;
 
-    @Column(name = "filename", nullable = false)
+    @Column(
+            name = "display_name",
+            nullable = false,
+            length = 255
+    )
+    private String displayName;
+
+    @Column(
+            name = "filename",
+            nullable = false
+    )
     private String filename;
 
     @Column(name = "content_type")
@@ -37,13 +51,24 @@ public class Document {
     @Column(name = "size_bytes")
     private Long sizeBytes;
 
-    @Column(name = "storage_path", nullable = false, columnDefinition = "TEXT")
+    @Column(
+            name = "storage_path",
+            nullable = false,
+            columnDefinition = "TEXT"
+    )
     private String storagePath;
 
-    @Column(name = "checksum_sha256", nullable = false)
+    @Column(
+            name = "checksum_sha256",
+            nullable = false
+    )
     private String checksumSha256;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(
+            name = "created_at",
+            nullable = false,
+            updatable = false
+    )
     private OffsetDateTime createdAt;
 }

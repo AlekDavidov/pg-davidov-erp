@@ -18,6 +18,12 @@ public interface DocumentRepository
     Optional<Document> findByChecksumSha256(String checksumSha256);
 
     @Query(
+            value = "SELECT nextval('document_code_seq')",
+            nativeQuery = true
+    )
+    long getNextCodeSequenceValue();
+
+    @Query(
             value = """
                     SELECT EXISTS (
                         SELECT 1

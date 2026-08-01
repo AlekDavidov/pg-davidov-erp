@@ -5,6 +5,7 @@ import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
 
 import InvoiceDialog from '../components/invoices/InvoiceDialog.vue'
+import InvoiceDocumentsDialog from '../components/invoices/InvoiceDocumentsDialog.vue'
 import InvoicePaymentsDialog from '../components/invoices/InvoicePaymentsDialog.vue'
 import InvoiceTable from '../components/invoices/InvoiceTable.vue'
 import { useInvoiceStore } from '../stores/invoiceStore'
@@ -14,9 +15,11 @@ const invoiceStore = useInvoiceStore()
 
 const dialogVisible = ref(false)
 const paymentsDialogVisible = ref(false)
+const documentsDialogVisible = ref(false)
 
 const selectedInvoice = ref(null)
 const selectedPaymentInvoice = ref(null)
+const selectedDocumentInvoice = ref(null)
 
 const openCreateDialog = () => {
   selectedInvoice.value = null
@@ -31,6 +34,11 @@ const openEditDialog = invoice => {
 const openPaymentsDialog = invoice => {
   selectedPaymentInvoice.value = invoice
   paymentsDialogVisible.value = true
+}
+
+const openDocumentsDialog = invoice => {
+  selectedDocumentInvoice.value = invoice
+  documentsDialogVisible.value = true
 }
 
 const handleDialogVisibility = visible => {
@@ -49,6 +57,23 @@ const handlePaymentsDialogVisibility = visible => {
   }
 }
 
+const handleDocumentsDialogVisibility = visible => {
+  documentsDialogVisible.value = visible
+
+  if (!visible) {
+    selectedDocumentInvoice.value = null
+  }
+}
+
+const refreshInvoices = async () => {
+  await invoiceStore.fetchInvoices({
+    page: invoiceStore.page,
+    size: invoiceStore.size,
+    sortBy: invoiceStore.sortBy,
+    sortDirection: invoiceStore.sortDirection
+  })
+}
+
 const handleSaved = event => {
   toast.add({
     severity: 'success',
@@ -64,24 +89,42 @@ const handleSaved = event => {
 }
 
 const handlePaymentsChanged = async () => {
-  await invoiceStore.fetchInvoices({
-    page: invoiceStore.page,
-    size: invoiceStore.size,
-    sortBy: invoiceStore.sortBy,
-    sortDirection: invoiceStore.sortDirection
-  })
+  await refreshInvoices()
 
   if (!selectedPaymentInvoice.value?.id) {
     return
   }
 
-  const refreshedInvoice = invoiceStore.invoices.find(
-      invoice =>
-          invoice.id === selectedPaymentInvoice.value.id
-  )
+  const refreshedInvoice =
+      invoiceStore.invoices.find(
+          invoice =>
+              invoice.id ===
+              selectedPaymentInvoice.value.id
+      )
 
   if (refreshedInvoice) {
-    selectedPaymentInvoice.value = refreshedInvoice
+    selectedPaymentInvoice.value =
+        refreshedInvoice
+  }
+}
+
+const handleDocumentsChanged = async () => {
+  await refreshInvoices()
+
+  if (!selectedDocumentInvoice.value?.id) {
+    return
+  }
+
+  const refreshedInvoice =
+      invoiceStore.invoices.find(
+          invoice =>
+              invoice.id ===
+              selectedDocumentInvoice.value.id
+      )
+
+  if (refreshedInvoice) {
+    selectedDocumentInvoice.value =
+        refreshedInvoice
   }
 }
 </script>
@@ -95,7 +138,9 @@ const handlePaymentsChanged = async () => {
         <h2>Fakture</h2>
 
         <p>
-          Upravljanje ulaznim fakturama, iznosima i statusima plaćanja.
+          Upravljanje ulaznim fakturama,
+          iznosima, dokumentima i statusima
+          plaćanja.
         </p>
       </div>
     </div>
@@ -104,20 +149,42 @@ const handlePaymentsChanged = async () => {
         @create="openCreateDialog"
         @edit="openEditDialog"
         @payments="openPaymentsDialog"
+        @documents="openDocumentsDialog"
     />
 
     <InvoiceDialog
         :visible="dialogVisible"
         :invoice="selectedInvoice"
-        @update:visible="handleDialogVisibility"
+        @update:visible="
+        handleDialogVisibility
+      "
         @saved="handleSaved"
     />
 
     <InvoicePaymentsDialog
         :visible="paymentsDialogVisible"
         :invoice="selectedPaymentInvoice"
-        @update:visible="handlePaymentsDialogVisibility"
-        @changed="handlePaymentsChanged"
+        @update:visible="
+        handlePaymentsDialogVisibility
+      "
+        @changed="
+        handlePaymentsChanged
+      "
+    />
+
+    <InvoiceDocumentsDialog
+        :visible="
+        documentsDialogVisible
+      "
+        :invoice="
+        selectedDocumentInvoice
+      "
+        @update:visible="
+        handleDocumentsDialogVisibility
+      "
+        @changed="
+        handleDocumentsChanged
+      "
     />
   </div>
 </template>

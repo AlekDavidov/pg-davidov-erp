@@ -25,7 +25,8 @@ const vTooltip = Tooltip
 const emit = defineEmits([
   'create',
   'edit',
-  'payments'
+  'payments',
+  'documents'
 ])
 
 const invoiceStore = useInvoiceStore()
@@ -260,9 +261,22 @@ onMounted(loadInvoices)
         </template>
       </Column>
 
-      <Column header="Akcije">
+      <Column
+          header="Akcije"
+          style="width: 12rem; min-width: 12rem"
+      >
         <template #body="{ data }">
           <div class="row-actions">
+            <Button
+                v-tooltip.top="'Dokumenti fakture'"
+                icon="pi pi-paperclip"
+                severity="help"
+                text
+                rounded
+                aria-label="Dokumenti fakture"
+                @click="emit('documents', data)"
+            />
+
             <Button
                 v-tooltip.top="'Uplate fakture'"
                 icon="pi pi-wallet"
@@ -317,7 +331,9 @@ onMounted(loadInvoices)
 .row-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.25rem;
+  white-space: nowrap;
 }
 
 .invoice-number-button {
