@@ -5,12 +5,18 @@ import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
 
 import InvoiceDialog from '../components/invoices/InvoiceDialog.vue'
+import InvoicePaymentsDialog from '../components/invoices/InvoicePaymentsDialog.vue'
 import InvoiceTable from '../components/invoices/InvoiceTable.vue'
+import { useInvoiceStore } from '../stores/invoiceStore'
 
 const toast = useToast()
+const invoiceStore = useInvoiceStore()
 
 const dialogVisible = ref(false)
+const paymentsDialogVisible = ref(false)
+
 const selectedInvoice = ref(null)
+const selectedPaymentInvoice = ref(null)
 
 const openCreateDialog = () => {
   selectedInvoice.value = null
@@ -22,11 +28,24 @@ const openEditDialog = invoice => {
   dialogVisible.value = true
 }
 
+const openPaymentsDialog = invoice => {
+  selectedPaymentInvoice.value = invoice
+  paymentsDialogVisible.value = true
+}
+
 const handleDialogVisibility = visible => {
   dialogVisible.value = visible
 
   if (!visible) {
     selectedInvoice.value = null
+  }
+}
+
+const handlePaymentsDialogVisibility = visible => {
+  paymentsDialogVisible.value = visible
+
+  if (!visible) {
+    selectedPaymentInvoice.value = null
   }
 }
 
@@ -42,6 +61,28 @@ const handleSaved = event => {
   })
 
   selectedInvoice.value = null
+}
+
+const handlePaymentsChanged = async () => {
+  await invoiceStore.fetchInvoices({
+    page: invoiceStore.page,
+    size: invoiceStore.size,
+    sortBy: invoiceStore.sortBy,
+    sortDirection: invoiceStore.sortDirection
+  })
+
+  if (!selectedPaymentInvoice.value?.id) {
+    return
+  }
+
+  const refreshedInvoice = invoiceStore.invoices.find(
+      invoice =>
+          invoice.id === selectedPaymentInvoice.value.id
+  )
+
+  if (refreshedInvoice) {
+    selectedPaymentInvoice.value = refreshedInvoice
+  }
 }
 </script>
 
@@ -62,6 +103,7 @@ const handleSaved = event => {
     <InvoiceTable
         @create="openCreateDialog"
         @edit="openEditDialog"
+        @payments="openPaymentsDialog"
     />
 
     <InvoiceDialog
@@ -69,6 +111,13 @@ const handleSaved = event => {
         :invoice="selectedInvoice"
         @update:visible="handleDialogVisibility"
         @saved="handleSaved"
+    />
+
+    <InvoicePaymentsDialog
+        :visible="paymentsDialogVisible"
+        :invoice="selectedPaymentInvoice"
+        @update:visible="handlePaymentsDialogVisibility"
+        @changed="handlePaymentsChanged"
     />
   </div>
 </template>

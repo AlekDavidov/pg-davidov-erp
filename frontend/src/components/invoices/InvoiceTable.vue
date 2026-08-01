@@ -24,7 +24,8 @@ const vTooltip = Tooltip
 
 const emit = defineEmits([
   'create',
-  'edit'
+  'edit',
+  'payments'
 ])
 
 const invoiceStore = useInvoiceStore()
@@ -262,6 +263,16 @@ onMounted(loadInvoices)
       <Column header="Akcije">
         <template #body="{ data }">
           <div class="row-actions">
+            <Button
+                v-tooltip.top="'Uplate fakture'"
+                icon="pi pi-wallet"
+                severity="info"
+                text
+                rounded
+                aria-label="Uplate fakture"
+                @click="emit('payments', data)"
+            />
+
             <Button
                 v-tooltip.top="'Izmeni fakturu'"
                 icon="pi pi-pencil"
