@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import BankAccountsView from '../views/BankAccountsView.vue'
+import BankImportView from '../views/BankImportView.vue'
 import CategoriesView from '../views/CategoriesView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import InvoicesView from '../views/InvoicesView.vue'
@@ -11,13 +12,13 @@ import TransactionsView from '../views/TransactionsView.vue'
 
 const placeholderRoutes = [
     { path: 'documents', title: 'Documents' },
-    { path: 'bank-import', title: 'Bank Import' },
     { path: 'reports', title: 'Reports' },
     { path: 'settings', title: 'Settings' }
 ]
 
 export default createRouter({
     history: createWebHistory(),
+
     routes: [
         {
             path: '/',
@@ -53,6 +54,11 @@ export default createRouter({
             path: '/bank-accounts',
             name: 'bank-accounts',
             component: BankAccountsView
+        },
+        {
+            path: '/bank-import',
+            name: 'bank-import',
+            component: BankImportView
         },
         ...placeholderRoutes.map(route => ({
             path: `/${route.path}`,
