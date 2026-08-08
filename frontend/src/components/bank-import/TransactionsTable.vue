@@ -2,14 +2,17 @@
 import {
   computed
 } from 'vue'
+import { storeToRefs } from 'pinia'
 
 import Button from 'primevue/button'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 
 import {
   formatAmount,
   formatDate
 } from '../../utils/formatters'
+import { useBankImportStore } from '../../stores/bankImportStore'
 
 const props = defineProps({
   transactions: {
@@ -23,9 +26,38 @@ const props = defineProps({
   }
 })
 
+const bankImportStore =
+    useBankImportStore()
+
+const {
+  supplierOptions,
+  suppliersLoading
+} = storeToRefs(bankImportStore)
+
 const resolvedTransactionCount = computed(() =>
     props.transactionCount ||
     props.transactions.length
+)
+
+const matchedTransactionCount = computed(() =>
+    props.transactions.filter(
+        transaction =>
+            transaction.matchStatus === 'MATCHED'
+    ).length
+)
+
+const unmatchedTransactionCount = computed(() =>
+    props.transactions.filter(
+        transaction =>
+            transaction.matchStatus === 'UNMATCHED'
+    ).length
+)
+
+const ambiguousTransactionCount = computed(() =>
+    props.transactions.filter(
+        transaction =>
+            transaction.matchStatus === 'AMBIGUOUS'
+    ).length
 )
 
 const getTransactionType = transaction => {
@@ -46,6 +78,32 @@ const getTransactionType = transaction => {
   }
 }
 
+const getMatchStatus = transaction => {
+  switch (transaction.matchStatus) {
+    case 'MATCHED':
+      return {
+        label: 'Povezano',
+        severity: 'success',
+        icon: 'pi pi-check-circle'
+      }
+
+    case 'AMBIGUOUS':
+      return {
+        label: 'Više mogućnosti',
+        severity: 'danger',
+        icon: 'pi pi-exclamation-circle'
+      }
+
+    case 'UNMATCHED':
+    default:
+      return {
+        label: 'Nije povezano',
+        severity: 'warn',
+        icon: 'pi pi-exclamation-triangle'
+      }
+  }
+}
+
 const getTransactionDescription =
     transaction =>
         transaction.description ||
@@ -57,10 +115,35 @@ const getCounterparty =
         transaction.counterparty ||
         'Nije prepoznato'
 
+const getCategoryName =
+    transaction =>
+        transaction.categoryName ||
+        'Nije dodeljena'
+
 const formatReference = transaction =>
     transaction.reference ||
     transaction.orderReference ||
     '—'
+
+const handleSupplierChange = (
+    transaction,
+    supplierId
+) => {
+  if (!supplierId) {
+    bankImportStore
+        .clearSupplierSelection(
+            transaction
+        )
+
+    return
+  }
+
+  bankImportStore
+      .applySupplierSelection(
+          transaction,
+          supplierId
+      )
+}
 </script>
 
 <template>
@@ -70,17 +153,43 @@ const formatReference = transaction =>
         <h3>Pregled transakcija</h3>
 
         <p>
-          Proverite pročitane podatke pre
-          konačnog uvoza u sistem.
+          Proverite automatski prepoznate
+          podatke i ručno povežite stavke
+          koje nisu prepoznate.
         </p>
       </div>
 
-      <Tag
-          :value="
-          `${resolvedTransactionCount} stavki`
-        "
-          severity="info"
-      />
+      <div class="preview-header-statuses">
+        <Tag
+            :value="
+            `${resolvedTransactionCount} stavki`
+          "
+            severity="info"
+        />
+
+        <Tag
+            :value="
+            `${matchedTransactionCount} povezano`
+          "
+            severity="success"
+        />
+
+        <Tag
+            v-if="unmatchedTransactionCount > 0"
+            :value="
+            `${unmatchedTransactionCount} nepovezano`
+          "
+            severity="warn"
+        />
+
+        <Tag
+            v-if="ambiguousTransactionCount > 0"
+            :value="
+            `${ambiguousTransactionCount} nejasno`
+          "
+            severity="danger"
+        />
+      </div>
     </div>
 
     <div class="preview-table-wrapper">
@@ -96,6 +205,12 @@ const formatReference = transaction =>
           <th>Tip</th>
 
           <th>Druga strana</th>
+
+          <th>Dobavljač</th>
+
+          <th>Kategorija</th>
+
+          <th>Status</th>
 
           <th>Opis</th>
 
@@ -121,6 +236,15 @@ const formatReference = transaction =>
             :key="
               `${transaction.sourcePage}-${transaction.entryNumber}`
             "
+            :class="{
+              'row-unmatched':
+                transaction.matchStatus ===
+                'UNMATCHED',
+
+              'row-ambiguous':
+                transaction.matchStatus ===
+                'AMBIGUOUS'
+            }"
         >
           <td class="entry-cell">
             {{ transaction.entryNumber }}
@@ -188,6 +312,125 @@ const formatReference = transaction =>
             </small>
           </td>
 
+          <td class="supplier-cell">
+            <Select
+                :model-value="
+                  transaction.supplierId
+                "
+                :options="
+                  supplierOptions
+                "
+                option-label="name"
+                option-value="id"
+                placeholder="Izaberite dobavljača"
+                filter
+                show-clear
+                :loading="
+                  suppliersLoading
+                "
+                class="supplier-select"
+                @update:model-value="
+                  handleSupplierChange(
+                    transaction,
+                    $event
+                  )
+                "
+            >
+              <template #option="{ option }">
+                <div class="supplier-option">
+                  <strong>
+                    {{ option.name }}
+                  </strong>
+
+                  <small>
+                    {{ option.code }}
+                  </small>
+                </div>
+              </template>
+
+              <template #value="{ value }">
+                  <span
+                      v-if="value"
+                      class="supplier-selected-value"
+                  >
+                    {{
+                      supplierOptions.find(
+                          option =>
+                              option.id === value
+                      )?.name ||
+                      transaction.supplierName ||
+                      'Dobavljač'
+                    }}
+                  </span>
+
+                <span
+                    v-else
+                    class="supplier-placeholder"
+                >
+                    Izaberite dobavljača
+                  </span>
+              </template>
+            </Select>
+          </td>
+
+          <td
+              class="category-cell"
+              :class="{
+                'empty-match-cell':
+                  !transaction.categoryName
+              }"
+          >
+              <span class="match-cell-icon">
+                <i
+                    :class="
+                    transaction.categoryName
+                      ? 'pi pi-tag'
+                      : 'pi pi-question-circle'
+                  "
+                />
+              </span>
+
+            <div class="match-cell-content">
+              <strong>
+                {{
+                  getCategoryName(
+                      transaction
+                  )
+                }}
+              </strong>
+
+              <small
+                  v-if="transaction.categoryId"
+              >
+                Podrazumevana kategorija
+              </small>
+
+              <small v-else>
+                Kategorija nije određena
+              </small>
+            </div>
+          </td>
+
+          <td class="status-cell">
+            <Tag
+                :value="
+                  getMatchStatus(
+                    transaction
+                  ).label
+                "
+                :severity="
+                  getMatchStatus(
+                    transaction
+                  ).severity
+                "
+                :icon="
+                  getMatchStatus(
+                    transaction
+                  ).icon
+                "
+            />
+          </td>
+
           <td class="description-cell">
               <span>
                 {{
@@ -223,7 +466,9 @@ const formatReference = transaction =>
                 }}
               </span>
 
-            <span v-else>—</span>
+            <span v-else>
+                —
+              </span>
           </td>
 
           <td
@@ -247,7 +492,9 @@ const formatReference = transaction =>
                 }}
               </span>
 
-            <span v-else>—</span>
+            <span v-else>
+                —
+              </span>
           </td>
 
           <td class="amount-cell balance-cell">
@@ -270,9 +517,9 @@ const formatReference = transaction =>
         <i class="pi pi-info-circle" />
 
         <span>
-          Povezivanje dobavljača,
-          kategorija i provera duplikata
-          biće dostupni u sledećem koraku.
+          Izbor dobavljača automatski
+          postavlja njegovu podrazumevanu
+          kategoriju.
         </span>
       </div>
 
@@ -321,6 +568,14 @@ const formatReference = transaction =>
   font-size: 0.8rem;
 }
 
+.preview-header-statuses {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .preview-table-wrapper {
   display: block;
   width: 100%;
@@ -351,7 +606,7 @@ const formatReference = transaction =>
 
 .preview-table {
   width: max-content;
-  min-width: 1700px;
+  min-width: 2400px;
   border-collapse: collapse;
   table-layout: auto;
 }
@@ -388,6 +643,29 @@ const formatReference = transaction =>
 
 .preview-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.preview-table tbody tr.row-unmatched {
+  background:
+      color-mix(
+          in srgb,
+          #f4b740 4%,
+          transparent
+      );
+}
+
+.preview-table tbody tr.row-ambiguous {
+  background:
+      color-mix(
+          in srgb,
+          #c43b3b 5%,
+          transparent
+      );
+}
+
+.preview-table tbody tr.row-unmatched:hover,
+.preview-table tbody tr.row-ambiguous:hover {
+  background: var(--app-surface-soft);
 }
 
 .entry-column,
@@ -443,6 +721,111 @@ const formatReference = transaction =>
 .counterparty-cell strong,
 .counterparty-cell small {
   white-space: nowrap;
+}
+
+.supplier-cell {
+  width: 18rem;
+  min-width: 18rem;
+  max-width: 18rem;
+}
+
+.supplier-select {
+  width: 100%;
+}
+
+.supplier-select :deep(.p-select-label) {
+  overflow: hidden;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supplier-selected-value {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.supplier-placeholder {
+  color: var(--app-text-muted);
+}
+
+.supplier-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.supplier-option strong {
+  color: var(--app-text);
+  font-size: 0.8rem;
+}
+
+.supplier-option small {
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+}
+
+.category-cell {
+  display: flex;
+  width: 15rem;
+  min-width: 15rem;
+  max-width: 15rem;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.match-cell-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 0.65rem;
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+}
+
+.empty-match-cell .match-cell-icon {
+  background:
+      color-mix(
+          in srgb,
+          #f4b740 14%,
+          transparent
+      );
+  color: #a66a00;
+}
+
+.match-cell-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.match-cell-content strong {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 0.77rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-cell-content small {
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-match-cell .match-cell-content strong {
+  color: var(--app-text-muted);
+  font-weight: 500;
+}
+
+.status-cell {
+  min-width: 10rem;
 }
 
 .description-cell {
@@ -523,6 +906,10 @@ const formatReference = transaction =>
     flex-direction: column;
   }
 
+  .preview-header-statuses {
+    justify-content: flex-start;
+  }
+
   .preview-footer {
     align-items: stretch;
     flex-direction: column;
@@ -537,7 +924,7 @@ const formatReference = transaction =>
   }
 
   .preview-table {
-    min-width: 1550px;
+    min-width: 2250px;
   }
 }
 </style>

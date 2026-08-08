@@ -1,7 +1,5 @@
 package rs.pgdavidov.erp.bankimport.dto;
 
-import rs.pgdavidov.erp.bankimport.model.ParsedBankTransaction;
-
 import java.time.LocalDate;
 import java.util.List;
 
@@ -27,9 +25,10 @@ public record BankImportPreviewResponse(
 
         Integer transactionCount,
 
-        List<ParsedBankTransaction> transactions
+        List<BankImportTransactionPreviewResponse> transactions
 
 ) {
+
     public BankImportPreviewResponse {
         transactions = transactions == null
                 ? List.of()
