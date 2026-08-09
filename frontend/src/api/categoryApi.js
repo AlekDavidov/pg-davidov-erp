@@ -21,6 +21,14 @@ export const categoryApi = {
         return response.data
     },
 
+    async findOptions() {
+        const response = await httpClient.get(
+            `${CATEGORIES_PATH}/options`
+        )
+
+        return response.data
+    },
+
     async findById(id) {
         const response = await httpClient.get(
             `${CATEGORIES_PATH}/${id}`
