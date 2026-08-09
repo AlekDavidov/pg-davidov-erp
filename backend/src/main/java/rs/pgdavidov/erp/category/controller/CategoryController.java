@@ -4,11 +4,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import rs.pgdavidov.erp.category.dto.CategoryOptionResponse;
 import rs.pgdavidov.erp.category.dto.CategoryRequest;
 import rs.pgdavidov.erp.category.dto.CategoryResponse;
 import rs.pgdavidov.erp.category.service.CategoryService;
 import rs.pgdavidov.erp.common.pagination.PagedResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -33,8 +35,15 @@ public class CategoryController {
         );
     }
 
+    @GetMapping("/options")
+    public List<CategoryOptionResponse> findOptions() {
+        return categoryService.findOptions();
+    }
+
     @GetMapping("/{id}")
-    public CategoryResponse findById(@PathVariable UUID id) {
+    public CategoryResponse findById(
+            @PathVariable UUID id
+    ) {
         return categoryService.findById(id);
     }
 
@@ -51,12 +60,17 @@ public class CategoryController {
             @PathVariable UUID id,
             @Valid @RequestBody CategoryRequest request
     ) {
-        return categoryService.update(id, request);
+        return categoryService.update(
+                id,
+                request
+        );
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID id) {
+    public void delete(
+            @PathVariable UUID id
+    ) {
         categoryService.delete(id);
     }
 }

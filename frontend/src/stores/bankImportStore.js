@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { bankImportApi } from '../api/bankImportApi'
+import { categoryApi } from '../api/categoryApi'
 
 const createEmptyState = () => ({
     selectedFile: null,
@@ -10,7 +11,11 @@ const createEmptyState = () => ({
 
     supplierOptions: [],
     suppliersLoading: false,
-    suppliersError: null
+    suppliersError: null,
+
+    categoryOptions: [],
+    categoriesLoading: false,
+    categoriesError: null
 })
 
 export const useBankImportStore = defineStore(
@@ -48,6 +53,9 @@ export const useBankImportStore = defineStore(
 
             hasSupplierOptions: state =>
                 state.supplierOptions.length > 0,
+
+            hasCategoryOptions: state =>
+                state.categoryOptions.length > 0,
 
             matchedTransactionCount: state =>
                 (
@@ -101,12 +109,14 @@ export const useBankImportStore = defineStore(
                 try {
                     const [
                         preview,
-                        supplierOptions
+                        supplierOptions,
+                        categoryOptions
                     ] = await Promise.all([
                         bankImportApi.preview(
                             this.selectedFile
                         ),
-                        this.fetchSupplierOptions()
+                        this.fetchSupplierOptions(),
+                        this.fetchCategoryOptions()
                     ])
 
                     this.preview = preview
@@ -114,6 +124,11 @@ export const useBankImportStore = defineStore(
                     if (supplierOptions) {
                         this.supplierOptions =
                             supplierOptions
+                    }
+
+                    if (categoryOptions) {
+                        this.categoryOptions =
+                            categoryOptions
                     }
                 } catch (error) {
                     this.error =
@@ -164,6 +179,45 @@ export const useBankImportStore = defineStore(
                     return []
                 } finally {
                     this.suppliersLoading = false
+                }
+            },
+
+            async loadCategoryOptions() {
+                this.categoriesLoading = true
+                this.categoriesError = null
+
+                try {
+                    this.categoryOptions =
+                        await categoryApi.findOptions()
+                } catch (error) {
+                    this.categoryOptions = []
+
+                    this.categoriesError =
+                        error.response?.data?.message ||
+                        error.response?.data?.detail ||
+                        error.message ||
+                        'Kategorije nisu mogle da budu učitane.'
+                } finally {
+                    this.categoriesLoading = false
+                }
+            },
+
+            async fetchCategoryOptions() {
+                this.categoriesLoading = true
+                this.categoriesError = null
+
+                try {
+                    return await categoryApi.findOptions()
+                } catch (error) {
+                    this.categoriesError =
+                        error.response?.data?.message ||
+                        error.response?.data?.detail ||
+                        error.message ||
+                        'Kategorije nisu mogle da budu učitane.'
+
+                    return []
+                } finally {
+                    this.categoriesLoading = false
                 }
             },
 
@@ -222,6 +276,41 @@ export const useBankImportStore = defineStore(
                     'UNMATCHED'
             },
 
+            applyCategorySelection(
+                transaction,
+                categoryId
+            ) {
+                if (!transaction) {
+                    return
+                }
+
+                if (!categoryId) {
+                    transaction.categoryId = null
+                    transaction.categoryName = null
+
+                    return
+                }
+
+                const category =
+                    this.categoryOptions.find(
+                        option =>
+                            option.id === categoryId
+                    )
+
+                if (!category) {
+                    transaction.categoryId = null
+                    transaction.categoryName = null
+
+                    return
+                }
+
+                transaction.categoryId =
+                    category.id
+
+                transaction.categoryName =
+                    category.name
+            },
+
             clearPreview() {
                 this.preview = null
                 this.error = null
@@ -231,6 +320,9 @@ export const useBankImportStore = defineStore(
                 const supplierOptions =
                     this.supplierOptions
 
+                const categoryOptions =
+                    this.categoryOptions
+
                 Object.assign(
                     this,
                     createEmptyState()
@@ -238,6 +330,9 @@ export const useBankImportStore = defineStore(
 
                 this.supplierOptions =
                     supplierOptions
+
+                this.categoryOptions =
+                    categoryOptions
             }
         }
     }

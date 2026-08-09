@@ -31,7 +31,9 @@ const bankImportStore =
 
 const {
   supplierOptions,
-  suppliersLoading
+  suppliersLoading,
+  categoryOptions,
+  categoriesLoading
 } = storeToRefs(bankImportStore)
 
 const resolvedTransactionCount = computed(() =>
@@ -115,11 +117,6 @@ const getCounterparty =
         transaction.counterparty ||
         'Nije prepoznato'
 
-const getCategoryName =
-    transaction =>
-        transaction.categoryName ||
-        'Nije dodeljena'
-
 const formatReference = transaction =>
     transaction.reference ||
     transaction.orderReference ||
@@ -144,6 +141,33 @@ const handleSupplierChange = (
           supplierId
       )
 }
+
+const handleCategoryChange = (
+    transaction,
+    categoryId
+) => {
+  bankImportStore
+      .applyCategorySelection(
+          transaction,
+          categoryId
+      )
+}
+
+const resolveSupplierName = transaction =>
+    supplierOptions.value.find(
+        option =>
+            option.id === transaction.supplierId
+    )?.name ||
+    transaction.supplierName ||
+    'Dobavljač'
+
+const resolveCategoryName = transaction =>
+    categoryOptions.value.find(
+        option =>
+            option.id === transaction.categoryId
+    )?.name ||
+    transaction.categoryName ||
+    'Kategorija'
 </script>
 
 <template>
@@ -154,8 +178,8 @@ const handleSupplierChange = (
 
         <p>
           Proverite automatski prepoznate
-          podatke i ručno povežite stavke
-          koje nisu prepoznate.
+          podatke i po potrebi ručno izmenite
+          dobavljača ili kategoriju.
         </p>
       </div>
 
@@ -328,7 +352,7 @@ const handleSupplierChange = (
                 :loading="
                   suppliersLoading
                 "
-                class="supplier-select"
+                class="entity-select"
                 @update:model-value="
                   handleSupplierChange(
                     transaction,
@@ -337,7 +361,7 @@ const handleSupplierChange = (
                 "
             >
               <template #option="{ option }">
-                <div class="supplier-option">
+                <div class="select-option">
                   <strong>
                     {{ option.name }}
                   </strong>
@@ -351,21 +375,18 @@ const handleSupplierChange = (
               <template #value="{ value }">
                   <span
                       v-if="value"
-                      class="supplier-selected-value"
+                      class="selected-value"
                   >
                     {{
-                      supplierOptions.find(
-                          option =>
-                              option.id === value
-                      )?.name ||
-                      transaction.supplierName ||
-                      'Dobavljač'
+                      resolveSupplierName(
+                          transaction
+                      )
                     }}
                   </span>
 
                 <span
                     v-else
-                    class="supplier-placeholder"
+                    class="select-placeholder"
                 >
                     Izaberite dobavljača
                   </span>
@@ -373,42 +394,62 @@ const handleSupplierChange = (
             </Select>
           </td>
 
-          <td
-              class="category-cell"
-              :class="{
-                'empty-match-cell':
-                  !transaction.categoryName
-              }"
-          >
-              <span class="match-cell-icon">
-                <i
-                    :class="
-                    transaction.categoryName
-                      ? 'pi pi-tag'
-                      : 'pi pi-question-circle'
-                  "
-                />
-              </span>
-
-            <div class="match-cell-content">
-              <strong>
-                {{
-                  getCategoryName(
-                      transaction
+          <td class="category-cell">
+            <Select
+                :model-value="
+                  transaction.categoryId
+                "
+                :options="
+                  categoryOptions
+                "
+                option-label="name"
+                option-value="id"
+                placeholder="Izaberite kategoriju"
+                filter
+                show-clear
+                :loading="
+                  categoriesLoading
+                "
+                class="entity-select"
+                @update:model-value="
+                  handleCategoryChange(
+                    transaction,
+                    $event
                   )
-                }}
-              </strong>
+                "
+            >
+              <template #option="{ option }">
+                <div class="select-option">
+                  <strong>
+                    {{ option.name }}
+                  </strong>
 
-              <small
-                  v-if="transaction.categoryId"
-              >
-                Podrazumevana kategorija
-              </small>
+                  <small>
+                    {{ option.code }}
+                  </small>
+                </div>
+              </template>
 
-              <small v-else>
-                Kategorija nije određena
-              </small>
-            </div>
+              <template #value="{ value }">
+                  <span
+                      v-if="value"
+                      class="selected-value"
+                  >
+                    {{
+                      resolveCategoryName(
+                          transaction
+                      )
+                    }}
+                  </span>
+
+                <span
+                    v-else
+                    class="select-placeholder"
+                >
+                    Izaberite kategoriju
+                  </span>
+              </template>
+            </Select>
           </td>
 
           <td class="status-cell">
@@ -517,9 +558,9 @@ const handleSupplierChange = (
         <i class="pi pi-info-circle" />
 
         <span>
-          Izbor dobavljača automatski
-          postavlja njegovu podrazumevanu
-          kategoriju.
+          Izbor dobavljača automatski postavlja
+          njegovu podrazumevanu kategoriju,
+          koju zatim možete ručno promeniti.
         </span>
       </div>
 
@@ -729,99 +770,46 @@ const handleSupplierChange = (
   max-width: 18rem;
 }
 
-.supplier-select {
+.category-cell {
+  width: 16rem;
+  min-width: 16rem;
+  max-width: 16rem;
+}
+
+.entity-select {
   width: 100%;
 }
 
-.supplier-select :deep(.p-select-label) {
+.entity-select :deep(.p-select-label) {
   overflow: hidden;
   font-size: 0.76rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.supplier-selected-value {
+.selected-value {
   color: var(--app-text);
   font-weight: 600;
 }
 
-.supplier-placeholder {
+.select-placeholder {
   color: var(--app-text-muted);
 }
 
-.supplier-option {
+.select-option {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
 }
 
-.supplier-option strong {
+.select-option strong {
   color: var(--app-text);
   font-size: 0.8rem;
 }
 
-.supplier-option small {
+.select-option small {
   color: var(--app-text-muted);
   font-size: 0.68rem;
-}
-
-.category-cell {
-  display: flex;
-  width: 15rem;
-  min-width: 15rem;
-  max-width: 15rem;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.match-cell-icon {
-  display: inline-flex;
-  width: 2rem;
-  height: 2rem;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border-radius: 0.65rem;
-  background: var(--brand-green-soft);
-  color: var(--brand-green);
-}
-
-.empty-match-cell .match-cell-icon {
-  background:
-      color-mix(
-          in srgb,
-          #f4b740 14%,
-          transparent
-      );
-  color: #a66a00;
-}
-
-.match-cell-content {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.18rem;
-}
-
-.match-cell-content strong {
-  overflow: hidden;
-  color: var(--app-text);
-  font-size: 0.77rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.match-cell-content small {
-  overflow: hidden;
-  color: var(--app-text-muted);
-  font-size: 0.65rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.empty-match-cell .match-cell-content strong {
-  color: var(--app-text-muted);
-  font-weight: 500;
 }
 
 .status-cell {
