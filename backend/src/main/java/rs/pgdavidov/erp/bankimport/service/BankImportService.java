@@ -14,9 +14,11 @@ import rs.pgdavidov.erp.bankimport.parser.BankStatementParserResolver;
 import rs.pgdavidov.erp.bankimport.service.SupplierMatchingService.SupplierMatchResult;
 import rs.pgdavidov.erp.category.entity.Category;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
+import rs.pgdavidov.erp.transaction.repository.TransactionRepository;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,12 @@ public class BankImportService {
 
     private final SupplierMatchingService
             supplierMatchingService;
+
+    private final BankStatementRowIdGenerator
+            bankStatementRowIdGenerator;
+
+    private final TransactionRepository
+            transactionRepository;
 
     public BankImportPreviewResponse preview(
             MultipartFile file
@@ -48,6 +56,7 @@ public class BankImportService {
                         .stream()
                         .map(transaction ->
                                 toPreviewResponse(
+                                        statement,
                                         transaction,
                                         activeSuppliers
                                 )
@@ -86,6 +95,7 @@ public class BankImportService {
 
     private BankImportTransactionPreviewResponse
     toPreviewResponse(
+            ParsedBankStatement statement,
             ParsedBankTransaction transaction,
             List<Supplier> activeSuppliers
     ) {
@@ -102,6 +112,20 @@ public class BankImportService {
                 supplier != null
                         ? supplier.getDefaultCategory()
                         : null;
+
+        UUID bankStatementRowId =
+                bankStatementRowIdGenerator.generate(
+                        statement.bankCode(),
+                        statement.accountNumber(),
+                        statement.statementId(),
+                        transaction.entryNumber()
+                );
+
+        boolean duplicate =
+                transactionRepository
+                        .existsByBankStatementRowId(
+                                bankStatementRowId
+                        );
 
         return new BankImportTransactionPreviewResponse(
                 transaction.entryNumber(),
@@ -131,7 +155,7 @@ public class BankImportService {
                         ? category.getName()
                         : null,
                 matchResult.status(),
-                false
+                duplicate
         );
     }
 
