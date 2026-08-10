@@ -15,6 +15,8 @@ public record BankImportTransactionRequest(
         @NotNull
         LocalDate transactionDate,
 
+        LocalDate executionDate,
+
         @NotBlank
         String currencyCode,
 
@@ -27,6 +29,12 @@ public record BankImportTransactionRequest(
         String description,
 
         String reference,
+
+        String orderType,
+
+        String orderReference,
+
+        Integer sourcePage,
 
         UUID supplierId,
 

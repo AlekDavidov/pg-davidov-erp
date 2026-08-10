@@ -15,7 +15,11 @@ const createEmptyState = () => ({
 
     categoryOptions: [],
     categoriesLoading: false,
-    categoriesError: null
+    categoriesError: null,
+
+    importing: false,
+    importError: null,
+    importResult: null
 })
 
 export const useBankImportStore = defineStore(
@@ -82,7 +86,35 @@ export const useBankImportStore = defineStore(
                     transaction =>
                         transaction.matchStatus ===
                         'AMBIGUOUS'
-                ).length
+                ).length,
+
+            duplicateTransactionCount: state =>
+                (
+                    state.preview?.transactions || []
+                ).filter(
+                    transaction =>
+                        transaction.duplicate
+                ).length,
+
+            importableTransactions: state =>
+                (
+                    state.preview?.transactions || []
+                ).filter(
+                    transaction =>
+                        !transaction.duplicate
+                ),
+
+            importableTransactionCount() {
+                return this.importableTransactions.length
+            },
+
+            canImport() {
+                return (
+                    this.hasPreview &&
+                    this.importableTransactionCount > 0 &&
+                    !this.importing
+                )
+            }
         },
 
         actions: {
@@ -92,6 +124,8 @@ export const useBankImportStore = defineStore(
 
                 this.preview = null
                 this.error = null
+                this.importError = null
+                this.importResult = null
             },
 
             async loadPreview() {
@@ -105,6 +139,8 @@ export const useBankImportStore = defineStore(
                 this.loading = true
                 this.error = null
                 this.preview = null
+                this.importError = null
+                this.importResult = null
 
                 try {
                     const [
@@ -138,6 +174,162 @@ export const useBankImportStore = defineStore(
                         'Izvod nije mogao da bude obrađen.'
                 } finally {
                     this.loading = false
+                }
+            },
+
+            async importTransactions(
+                bankAccountId
+            ) {
+                if (!this.preview) {
+                    this.importError =
+                        'Izvod nije učitan.'
+
+                    return null
+                }
+
+                if (!bankAccountId) {
+                    this.importError =
+                        'Bankovni račun nije izabran.'
+
+                    return null
+                }
+
+                const transactions =
+                    this.importableTransactions
+
+                if (transactions.length === 0) {
+                    this.importError =
+                        'Nema novih transakcija za uvoz.'
+
+                    return null
+                }
+
+                this.importing = true
+                this.importError = null
+                this.importResult = null
+
+                try {
+                    const request = {
+                        bankCode:
+                        this.preview.bankCode,
+
+                        accountNumber:
+                        this.preview.accountNumber,
+
+                        statementId:
+                        this.preview.statementId,
+
+                        originalFilename:
+                            this.selectedFile?.name ||
+                            'bank-statement.pdf',
+
+                        bankAccountId,
+
+                        periodFrom:
+                        this.preview.periodFrom,
+
+                        periodTo:
+                        this.preview.periodTo,
+
+                        openingBalance:
+                        this.preview.openingBalance,
+
+                        totalIncome:
+                        this.preview.totalIncome,
+
+                        totalExpenses:
+                        this.preview.totalExpenses,
+
+                        closingBalance:
+                        this.preview.closingBalance,
+
+                        transactions:
+                            transactions.map(
+                                transaction => ({
+                                    entryNumber:
+                                    transaction.entryNumber,
+
+                                    transactionDate:
+                                    transaction.transactionDate,
+
+                                    executionDate:
+                                    transaction.executionDate,
+
+                                    currencyCode:
+                                    transaction.currencyCode,
+
+                                    debit:
+                                    transaction.debit,
+
+                                    credit:
+                                    transaction.credit,
+
+                                    counterparty:
+                                    transaction.counterparty,
+
+                                    description:
+                                    transaction.description,
+
+                                    reference:
+                                    transaction.reference,
+
+                                    orderType:
+                                    transaction.orderType,
+
+                                    orderReference:
+                                    transaction.orderReference,
+
+                                    sourcePage:
+                                    transaction.sourcePage,
+
+                                    supplierId:
+                                    transaction.supplierId,
+
+                                    categoryId:
+                                    transaction.categoryId
+                                })
+                            )
+                    }
+
+                    const result =
+                        await bankImportApi.importTransactions(
+                            request
+                        )
+
+                    this.importResult = result
+
+                    await this.refreshPreview()
+
+                    return result
+                } catch (error) {
+                    this.importError =
+                        error.response?.data?.message ||
+                        error.response?.data?.detail ||
+                        error.message ||
+                        'Transakcije nisu mogle da budu uvezene.'
+
+                    return null
+                } finally {
+                    this.importing = false
+                }
+            },
+
+            async refreshPreview() {
+                if (!this.selectedFile) {
+                    return
+                }
+
+                try {
+                    this.preview =
+                        await bankImportApi.preview(
+                            this.selectedFile
+                        )
+                } catch (error) {
+                    this.error =
+                        error.response?.data?.message ||
+                        error.response?.data?.detail ||
+                        error.message ||
+                        'Pregled izvoda nije mogao da bude osvežen.'
                 }
             },
 
@@ -314,6 +506,8 @@ export const useBankImportStore = defineStore(
             clearPreview() {
                 this.preview = null
                 this.error = null
+                this.importError = null
+                this.importResult = null
             },
 
             reset() {

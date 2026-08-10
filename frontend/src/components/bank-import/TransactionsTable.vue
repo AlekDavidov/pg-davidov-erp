@@ -23,8 +23,17 @@ const props = defineProps({
   transactionCount: {
     type: Number,
     default: 0
+  },
+
+  bankAccountId: {
+    type: String,
+    default: null
   }
 })
+
+const emit = defineEmits([
+  'import'
+])
 
 const bankImportStore =
     useBankImportStore()
@@ -33,7 +42,8 @@ const {
   supplierOptions,
   suppliersLoading,
   categoryOptions,
-  categoriesLoading
+  categoriesLoading,
+  importing
 } = storeToRefs(bankImportStore)
 
 const resolvedTransactionCount = computed(() =>
@@ -62,6 +72,40 @@ const ambiguousTransactionCount = computed(() =>
     ).length
 )
 
+const duplicateTransactionCount = computed(() =>
+    props.transactions.filter(
+        transaction =>
+            transaction.duplicate
+    ).length
+)
+
+const importableTransactionCount = computed(() =>
+    props.transactions.filter(
+        transaction =>
+            !transaction.duplicate
+    ).length
+)
+
+const canImport = computed(() =>
+    Boolean(props.bankAccountId) &&
+    importableTransactionCount.value > 0 &&
+    !importing.value
+)
+
+const importButtonLabel = computed(() => {
+  if (importing.value) {
+    return 'Uvoz u toku...'
+  }
+
+  if (
+      importableTransactionCount.value === 0
+  ) {
+    return 'Nema novih transakcija'
+  }
+
+  return `Uvezi ${importableTransactionCount.value} transakcija`
+})
+
 const getTransactionType = transaction => {
   if (
       Number(transaction.credit || 0) > 0
@@ -81,6 +125,14 @@ const getTransactionType = transaction => {
 }
 
 const getMatchStatus = transaction => {
+  if (transaction.duplicate) {
+    return {
+      label: 'Već uvezeno',
+      severity: 'secondary',
+      icon: 'pi pi-copy'
+    }
+  }
+
   switch (transaction.matchStatus) {
     case 'MATCHED':
       return {
@@ -122,10 +174,30 @@ const formatReference = transaction =>
     transaction.orderReference ||
     '—'
 
+const resolveSupplierName = transaction =>
+    supplierOptions.value.find(
+        option =>
+            option.id === transaction.supplierId
+    )?.name ||
+    transaction.supplierName ||
+    'Dobavljač'
+
+const resolveCategoryName = transaction =>
+    categoryOptions.value.find(
+        option =>
+            option.id === transaction.categoryId
+    )?.name ||
+    transaction.categoryName ||
+    'Kategorija'
+
 const handleSupplierChange = (
     transaction,
     supplierId
 ) => {
+  if (transaction.duplicate) {
+    return
+  }
+
   if (!supplierId) {
     bankImportStore
         .clearSupplierSelection(
@@ -146,6 +218,10 @@ const handleCategoryChange = (
     transaction,
     categoryId
 ) => {
+  if (transaction.duplicate) {
+    return
+  }
+
   bankImportStore
       .applyCategorySelection(
           transaction,
@@ -153,21 +229,13 @@ const handleCategoryChange = (
       )
 }
 
-const resolveSupplierName = transaction =>
-    supplierOptions.value.find(
-        option =>
-            option.id === transaction.supplierId
-    )?.name ||
-    transaction.supplierName ||
-    'Dobavljač'
+const handleImport = () => {
+  if (!canImport.value) {
+    return
+  }
 
-const resolveCategoryName = transaction =>
-    categoryOptions.value.find(
-        option =>
-            option.id === transaction.categoryId
-    )?.name ||
-    transaction.categoryName ||
-    'Kategorija'
+  emit('import')
+}
 </script>
 
 <template>
@@ -212,6 +280,14 @@ const resolveCategoryName = transaction =>
             `${ambiguousTransactionCount} nejasno`
           "
             severity="danger"
+        />
+
+        <Tag
+            v-if="duplicateTransactionCount > 0"
+            :value="
+            `${duplicateTransactionCount} već uvezeno`
+          "
+            severity="secondary"
         />
       </div>
     </div>
@@ -263,11 +339,16 @@ const resolveCategoryName = transaction =>
             :class="{
               'row-unmatched':
                 transaction.matchStatus ===
-                'UNMATCHED',
+                  'UNMATCHED' &&
+                !transaction.duplicate,
 
               'row-ambiguous':
                 transaction.matchStatus ===
-                'AMBIGUOUS'
+                  'AMBIGUOUS' &&
+                !transaction.duplicate,
+
+              'row-duplicate':
+                transaction.duplicate
             }"
         >
           <td class="entry-cell">
@@ -352,6 +433,10 @@ const resolveCategoryName = transaction =>
                 :loading="
                   suppliersLoading
                 "
+                :disabled="
+                  transaction.duplicate ||
+                  importing
+                "
                 class="entity-select"
                 @update:model-value="
                   handleSupplierChange(
@@ -409,6 +494,10 @@ const resolveCategoryName = transaction =>
                 show-clear
                 :loading="
                   categoriesLoading
+                "
+                :disabled="
+                  transaction.duplicate ||
+                  importing
                 "
                 class="entity-select"
                 @update:model-value="
@@ -557,18 +646,45 @@ const resolveCategoryName = transaction =>
       <div class="preview-footer-message">
         <i class="pi pi-info-circle" />
 
-        <span>
-          Izbor dobavljača automatski postavlja
-          njegovu podrazumevanu kategoriju,
-          koju zatim možete ručno promeniti.
+        <span
+            v-if="
+            duplicateTransactionCount > 0
+          "
+        >
+          {{ duplicateTransactionCount }}
+          već uvezenih stavki biće
+          preskočeno. Za uvoz je spremno
+          {{ importableTransactionCount }}
+          novih stavki.
+        </span>
+
+        <span v-else>
+          Izbor dobavljača automatski
+          postavlja njegovu podrazumevanu
+          kategoriju, koju zatim možete
+          ručno promeniti.
         </span>
       </div>
 
       <Button
-          label="Uvezi transakcije"
+          :label="importButtonLabel"
           icon="pi pi-check"
-          disabled
+          :loading="importing"
+          :disabled="!canImport"
+          @click="handleImport"
       />
+    </div>
+
+    <div
+        v-if="!bankAccountId"
+        class="bank-account-warning"
+    >
+      <i class="pi pi-exclamation-triangle" />
+
+      <span>
+        Izaberite bankovni račun pre uvoza
+        transakcija.
+      </span>
     </div>
   </section>
 </template>
@@ -675,7 +791,8 @@ const resolveCategoryName = transaction =>
 
 .preview-table tbody tr {
   transition:
-      background-color 140ms ease;
+      background-color 140ms ease,
+      opacity 140ms ease;
 }
 
 .preview-table tbody tr:hover {
@@ -704,8 +821,14 @@ const resolveCategoryName = transaction =>
       );
 }
 
+.preview-table tbody tr.row-duplicate {
+  background: var(--app-surface-soft);
+  opacity: 0.62;
+}
+
 .preview-table tbody tr.row-unmatched:hover,
-.preview-table tbody tr.row-ambiguous:hover {
+.preview-table tbody tr.row-ambiguous:hover,
+.preview-table tbody tr.row-duplicate:hover {
   background: var(--app-surface-soft);
 }
 
@@ -886,6 +1009,26 @@ const resolveCategoryName = transaction =>
 
 .preview-footer-message i {
   color: var(--brand-blue);
+}
+
+.bank-account-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1.25rem;
+  border-top: 1px solid var(--app-border);
+  background:
+      color-mix(
+          in srgb,
+          #f4b740 8%,
+          var(--app-surface)
+      );
+  color: var(--app-text-muted);
+  font-size: 0.77rem;
+}
+
+.bank-account-warning i {
+  color: #a66a00;
 }
 
 @media (max-width: 800px) {
