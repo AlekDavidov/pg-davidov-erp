@@ -1,5 +1,6 @@
 package rs.pgdavidov.erp.bankimport.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -23,6 +24,14 @@ public record BankImportPreviewResponse(
 
         String currencyCode,
 
+        BigDecimal openingBalance,
+
+        BigDecimal totalIncome,
+
+        BigDecimal totalExpenses,
+
+        BigDecimal closingBalance,
+
         Integer transactionCount,
 
         List<BankImportTransactionPreviewResponse> transactions
@@ -30,8 +39,9 @@ public record BankImportPreviewResponse(
 ) {
 
     public BankImportPreviewResponse {
-        transactions = transactions == null
-                ? List.of()
-                : List.copyOf(transactions);
+        transactions =
+                transactions == null
+                        ? List.of()
+                        : List.copyOf(transactions);
     }
 }

@@ -3,9 +3,7 @@ import httpClient from './httpClient'
 const BANK_IMPORT_PATH = '/bank-import'
 
 export const bankImportApi = {
-
     async preview(file) {
-
         const formData = new FormData()
 
         formData.append(
@@ -27,13 +25,20 @@ export const bankImportApi = {
         return response.data
     },
 
-    async getSupplierOptions() {
+    async importTransactions(request) {
+        const response = await httpClient.post(
+            `${BANK_IMPORT_PATH}/import`,
+            request
+        )
 
+        return response.data
+    },
+
+    async getSupplierOptions() {
         const response = await httpClient.get(
             `${BANK_IMPORT_PATH}/suppliers`
         )
 
         return response.data
     }
-
 }
