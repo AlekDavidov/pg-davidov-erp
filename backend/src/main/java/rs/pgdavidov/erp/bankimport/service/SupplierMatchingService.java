@@ -4,12 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
+import rs.pgdavidov.erp.supplier.repository.SupplierAliasRepository;
 import rs.pgdavidov.erp.supplier.repository.SupplierRepository;
+import rs.pgdavidov.erp.supplier.service.SupplierAliasNormalizer;
 
-import java.text.Normalizer;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -32,6 +32,12 @@ public class SupplierMatchingService {
 
     private final SupplierRepository supplierRepository;
 
+    private final SupplierAliasRepository
+            supplierAliasRepository;
+
+    private final SupplierAliasNormalizer
+            supplierAliasNormalizer;
+
     public List<Supplier> findActiveSuppliers() {
         return supplierRepository
                 .findAll()
@@ -45,7 +51,9 @@ public class SupplierMatchingService {
             List<Supplier> suppliers
     ) {
         String normalizedCounterparty =
-                normalize(counterparty);
+                supplierAliasNormalizer.normalize(
+                        counterparty
+                );
 
         if (
                 normalizedCounterparty.isBlank()
@@ -55,6 +63,24 @@ public class SupplierMatchingService {
             return SupplierMatchResult.unmatched();
         }
 
+        Optional<Supplier> aliasMatch =
+                supplierAliasRepository
+                        .findByNormalizedAliasAndActiveTrue(
+                                normalizedCounterparty
+                        )
+                        .map(alias ->
+                                alias.getSupplier()
+                        )
+                        .filter(
+                                Supplier::isActive
+                        );
+
+        if (aliasMatch.isPresent()) {
+            return SupplierMatchResult.matched(
+                    aliasMatch.get()
+            );
+        }
+
         List<SupplierCandidate> candidates =
                 suppliers
                         .stream()
@@ -62,9 +88,10 @@ public class SupplierMatchingService {
                         .map(supplier ->
                                 new SupplierCandidate(
                                         supplier,
-                                        normalize(
-                                                supplier.getName()
-                                        )
+                                        supplierAliasNormalizer
+                                                .normalize(
+                                                        supplier.getName()
+                                                )
                                 )
                         )
                         .filter(candidate ->
@@ -162,38 +189,6 @@ public class SupplierMatchingService {
         return paddedCounterparty.contains(
                 paddedSupplierName
         );
-    }
-
-    private String normalize(
-            String value
-    ) {
-        if (value == null) {
-            return "";
-        }
-
-        String withoutDiacritics =
-                Normalizer
-                        .normalize(
-                                value,
-                                Normalizer.Form.NFD
-                        )
-                        .replaceAll(
-                                "\\p{M}+",
-                                ""
-                        );
-
-        return withoutDiacritics
-                .toUpperCase(Locale.ROOT)
-                .replace('&', ' ')
-                .replaceAll(
-                        "[^A-Z0-9]+",
-                        " "
-                )
-                .replaceAll(
-                        "\\s+",
-                        " "
-                )
-                .trim();
     }
 
     private record SupplierCandidate(
