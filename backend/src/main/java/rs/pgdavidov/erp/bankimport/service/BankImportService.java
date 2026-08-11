@@ -27,6 +27,7 @@ import rs.pgdavidov.erp.category.entity.Category;
 import rs.pgdavidov.erp.common.exception.ResourceNotFoundException;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
 import rs.pgdavidov.erp.supplier.repository.SupplierRepository;
+import rs.pgdavidov.erp.supplier.service.SupplierAliasService;
 import rs.pgdavidov.erp.transaction.dto.TransactionRequest;
 import rs.pgdavidov.erp.transaction.entity.TransactionSource;
 import rs.pgdavidov.erp.transaction.entity.TransactionStatus;
@@ -51,6 +52,9 @@ public class BankImportService {
 
     private final SupplierMatchingService
             supplierMatchingService;
+
+    private final SupplierAliasService
+            supplierAliasService;
 
     private final BankStatementRepository
             bankStatementRepository;
@@ -360,6 +364,11 @@ public class BankImportService {
                 findSupplier(
                         transaction.supplierId()
                 );
+
+        supplierAliasService.rememberAlias(
+                transaction.counterparty(),
+                supplier
+        );
 
         row.setSuggestedSupplier(
                 supplier
