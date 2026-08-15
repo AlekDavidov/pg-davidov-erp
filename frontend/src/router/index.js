@@ -7,12 +7,12 @@ import DashboardView from '../views/DashboardView.vue'
 import InvoicesView from '../views/InvoicesView.vue'
 import PaymentMethodsView from '../views/PaymentMethodsView.vue'
 import PlaceholderView from '../views/PlaceholderView.vue'
+import SupplierLedgerView from '../views/SupplierLedgerView.vue'
 import SuppliersView from '../views/SuppliersView.vue'
 import TransactionsView from '../views/TransactionsView.vue'
 
 const placeholderRoutes = [
     { path: 'documents', title: 'Documents' },
-    { path: 'reports', title: 'Reports' },
     { path: 'settings', title: 'Settings' }
 ]
 
@@ -59,6 +59,11 @@ export default createRouter({
             path: '/bank-import',
             name: 'bank-import',
             component: BankImportView
+        },
+        {
+            path: '/reports',
+            name: 'reports',
+            component: SupplierLedgerView
         },
         ...placeholderRoutes.map(route => ({
             path: `/${route.path}`,

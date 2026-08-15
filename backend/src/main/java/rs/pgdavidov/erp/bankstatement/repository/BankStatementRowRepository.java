@@ -1,5 +1,6 @@
 package rs.pgdavidov.erp.bankstatement.repository;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import rs.pgdavidov.erp.bankstatement.entity.BankStatementRow;
 
@@ -18,5 +19,11 @@ public interface BankStatementRowRepository
     findByBankStatementIdAndEntryNumber(
             UUID bankStatementId,
             Integer entryNumber
+    );
+
+    @EntityGraph(attributePaths = "bankStatement")
+    Optional<BankStatementRow>
+    findWithBankStatementById(
+            UUID id
     );
 }
