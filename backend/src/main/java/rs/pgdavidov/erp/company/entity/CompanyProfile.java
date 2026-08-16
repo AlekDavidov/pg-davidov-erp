@@ -84,6 +84,18 @@ public class CompanyProfile {
     )
     private String bankAccountNumber;
 
+    @Column(
+            name = "logo_filename",
+            length = 255
+    )
+    private String logoFilename;
+
+    @Column(
+            name = "logo_content",
+            columnDefinition = "BYTEA"
+    )
+    private byte[] logoContent;
+
     @CreationTimestamp
     @Column(
             name = "created_at",

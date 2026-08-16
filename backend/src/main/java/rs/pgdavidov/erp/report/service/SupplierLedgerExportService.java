@@ -4,11 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.CreationHelper;
 import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Picture;
 import org.apache.poi.ss.usermodel.PrintSetup;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -17,6 +21,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import rs.pgdavidov.erp.company.dto.CompanyLogoResponse;
 import rs.pgdavidov.erp.company.dto.CompanyProfileResponse;
 import rs.pgdavidov.erp.company.service.CompanyProfileService;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerEntryResponse;
@@ -64,6 +69,11 @@ public class SupplierLedgerExportService {
                         .getProfile()
                         .orElse(null);
 
+        CompanyLogoResponse companyLogo =
+                companyProfileService
+                        .getLogo()
+                        .orElse(null);
+
         try (
                 Workbook workbook = new XSSFWorkbook();
                 ByteArrayOutputStream outputStream =
@@ -76,9 +86,11 @@ public class SupplierLedgerExportService {
                     createStyles(workbook);
 
             createHeader(
+                    workbook,
                     sheet,
                     ledger,
                     companyProfile,
+                    companyLogo,
                     styles
             );
 
@@ -139,9 +151,11 @@ public class SupplierLedgerExportService {
     }
 
     private void createHeader(
+            Workbook workbook,
             Sheet sheet,
             SupplierLedgerResponse ledger,
             CompanyProfileResponse companyProfile,
+            CompanyLogoResponse companyLogo,
             Styles styles
     ) {
         Row titleRow = sheet.createRow(0);
@@ -155,18 +169,31 @@ public class SupplierLedgerExportService {
                 new CellRangeAddress(0, 0, 0, 6)
         );
 
-        if (companyProfile != null) {
-            Row companyRow = sheet.createRow(2);
-            companyRow.setHeightInPoints(22);
+        for (int rowIndex = 2; rowIndex <= 10; rowIndex++) {
+            Row row = sheet.getRow(rowIndex);
 
-            Cell companyCell = companyRow.createCell(0);
-            companyCell.setCellValue(
-                    resolveText(companyProfile.name())
+            if (row == null) {
+                row = sheet.createRow(rowIndex);
+            }
+
+            row.setHeightInPoints(22);
+        }
+
+        if (companyLogo != null
+                && companyLogo.content() != null
+                && companyLogo.content().length > 0) {
+            addCompanyLogo(
+                    workbook,
+                    sheet,
+                    companyLogo
             );
-            companyCell.setCellStyle(styles.companyTitle());
+        }
 
-            sheet.addMergedRegion(
-                    new CellRangeAddress(2, 2, 0, 2)
+        if (companyProfile != null) {
+            createCompanyName(
+                    sheet,
+                    companyProfile,
+                    styles
             );
 
             createCompanyInfoRow(
@@ -272,6 +299,30 @@ public class SupplierLedgerExportService {
         );
     }
 
+    private void createCompanyName(
+            Sheet sheet,
+            CompanyProfileResponse companyProfile,
+            Styles styles
+    ) {
+        Row row = sheet.getRow(2);
+
+        if (row == null) {
+            row = sheet.createRow(2);
+        }
+
+        row.setHeightInPoints(22);
+
+        Cell companyCell = row.createCell(2);
+        companyCell.setCellValue(
+                resolveText(companyProfile.name())
+        );
+        companyCell.setCellStyle(styles.companyTitle());
+
+        sheet.addMergedRegion(
+                new CellRangeAddress(2, 2, 2, 3)
+        );
+    }
+
     private void createCompanyInfoRow(
             Sheet sheet,
             int rowIndex,
@@ -289,7 +340,7 @@ public class SupplierLedgerExportService {
             row = sheet.createRow(rowIndex);
         }
 
-        Cell cell = row.createCell(0);
+        Cell cell = row.createCell(2);
         cell.setCellValue(label + value);
         cell.setCellStyle(styles.value());
 
@@ -297,8 +348,8 @@ public class SupplierLedgerExportService {
                 new CellRangeAddress(
                         rowIndex,
                         rowIndex,
-                        0,
-                        2
+                        2,
+                        3
                 )
         );
     }
@@ -310,18 +361,17 @@ public class SupplierLedgerExportService {
             String value,
             Styles styles
     ) {
-        Row row =
-                sheet.getRow(rowIndex);
+        Row row = sheet.getRow(rowIndex);
 
         if (row == null) {
             row = sheet.createRow(rowIndex);
         }
 
-        Cell labelCell = row.createCell(3);
+        Cell labelCell = row.createCell(4);
         labelCell.setCellValue(label);
         labelCell.setCellStyle(styles.label());
 
-        Cell valueCell = row.createCell(4);
+        Cell valueCell = row.createCell(5);
         valueCell.setCellValue(value);
         valueCell.setCellStyle(styles.value());
 
@@ -329,10 +379,56 @@ public class SupplierLedgerExportService {
                 new CellRangeAddress(
                         rowIndex,
                         rowIndex,
-                        4,
+                        5,
                         6
                 )
         );
+    }
+
+    private void addCompanyLogo(
+            Workbook workbook,
+            Sheet sheet,
+            CompanyLogoResponse logo
+    ) {
+        int pictureType = resolvePictureType(
+                logo.filename()
+        );
+
+        int pictureIndex = workbook.addPicture(
+                logo.content(),
+                pictureType
+        );
+
+        CreationHelper creationHelper =
+                workbook.getCreationHelper();
+
+        Drawing<?> drawing =
+                sheet.createDrawingPatriarch();
+
+        ClientAnchor anchor =
+                creationHelper.createClientAnchor();
+
+        anchor.setCol1(0);
+        anchor.setRow1(2);
+        anchor.setCol2(2);
+        anchor.setRow2(9);
+
+        drawing.createPicture(
+                anchor,
+                pictureIndex
+        );
+    }
+
+    private int resolvePictureType(
+            String filename
+    ) {
+        if (filename != null
+                && filename.toLowerCase(Locale.ROOT)
+                .endsWith(".png")) {
+            return Workbook.PICTURE_TYPE_PNG;
+        }
+
+        return Workbook.PICTURE_TYPE_JPEG;
     }
 
     private void createSummary(

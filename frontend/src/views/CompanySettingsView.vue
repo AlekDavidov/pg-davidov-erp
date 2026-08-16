@@ -1,5 +1,6 @@
 <script setup>
 import {
+  onBeforeUnmount,
   onMounted,
   reactive,
   ref
@@ -19,6 +20,12 @@ const loading = ref(false)
 const saving = ref(false)
 const error = ref(null)
 const submitted = ref(false)
+
+const logoLoading = ref(false)
+const logoUploading = ref(false)
+const logoDeleting = ref(false)
+const logoUrl = ref(null)
+const logoInput = ref(null)
 
 const form = reactive({
   name: '',
@@ -67,6 +74,44 @@ const populateForm = profile => {
   error.value = null
 }
 
+const revokeLogoUrl = () => {
+  if (logoUrl.value) {
+    window.URL.revokeObjectURL(
+        logoUrl.value
+    )
+
+    logoUrl.value = null
+  }
+}
+
+const loadLogo = async () => {
+  logoLoading.value = true
+
+  revokeLogoUrl()
+
+  try {
+    const blob =
+        await companyProfileApi.getLogo()
+
+    logoUrl.value =
+        window.URL.createObjectURL(
+            blob
+        )
+  } catch (loadError) {
+    if (
+        loadError.response?.status !== 404
+    ) {
+      error.value =
+          loadError.response?.data?.message ||
+          loadError.response?.data?.detail ||
+          loadError.message ||
+          'Logo nije mogao da bude učitan.'
+    }
+  } finally {
+    logoLoading.value = false
+  }
+}
+
 const loadProfile = async () => {
   loading.value = true
   error.value = null
@@ -77,8 +122,11 @@ const loadProfile = async () => {
 
     if (profile) {
       populateForm(profile)
+
+      await loadLogo()
     } else {
       resetForm()
+      revokeLogoUrl()
     }
   } catch (loadError) {
     error.value =
@@ -189,8 +237,110 @@ const saveProfile = async () => {
   }
 }
 
+const openLogoPicker = () => {
+  logoInput.value?.click()
+}
+
+const uploadLogo = async event => {
+  const file =
+      event.target.files?.[0]
+
+  event.target.value = ''
+
+  if (!file) {
+    return
+  }
+
+  const supportedTypes = [
+    'image/png',
+    'image/jpeg'
+  ]
+
+  if (
+      !supportedTypes.includes(
+          file.type
+      )
+  ) {
+    error.value =
+        'Logo mora biti PNG, JPG ili JPEG fajl.'
+
+    return
+  }
+
+  const maxSize =
+      5 * 1024 * 1024
+
+  if (
+      file.size >
+      maxSize
+  ) {
+    error.value =
+        'Logo ne može biti veći od 5 MB.'
+
+    return
+  }
+
+  logoUploading.value = true
+  error.value = null
+
+  try {
+    await companyProfileApi.uploadLogo(
+        file
+    )
+
+    await loadLogo()
+
+    toast.add({
+      severity: 'success',
+      summary: 'Logo je sačuvan',
+      detail:
+          'Logo gazdinstva je uspešno sačuvan.',
+      life: 3000
+    })
+  } catch (uploadError) {
+    error.value =
+        uploadError.response?.data?.message ||
+        uploadError.response?.data?.detail ||
+        uploadError.message ||
+        'Logo nije mogao da bude sačuvan.'
+  } finally {
+    logoUploading.value = false
+  }
+}
+
+const deleteLogo = async () => {
+  logoDeleting.value = true
+  error.value = null
+
+  try {
+    await companyProfileApi.deleteLogo()
+
+    revokeLogoUrl()
+
+    toast.add({
+      severity: 'success',
+      summary: 'Logo je obrisan',
+      detail:
+          'Logo gazdinstva je uspešno obrisan.',
+      life: 3000
+    })
+  } catch (deleteError) {
+    error.value =
+        deleteError.response?.data?.message ||
+        deleteError.response?.data?.detail ||
+        deleteError.message ||
+        'Logo nije mogao da bude obrisan.'
+  } finally {
+    logoDeleting.value = false
+  }
+}
+
 onMounted(
     loadProfile
+)
+
+onBeforeUnmount(
+    revokeLogoUrl
 )
 </script>
 
@@ -230,6 +380,95 @@ onMounted(
         v-else
         class="settings-card"
     >
+      <section class="settings-section">
+        <div class="section-header">
+          <div>
+            <h3>Logo gazdinstva</h3>
+
+            <p>
+              Logo koji se koristi u izveštajima
+              i dokumentima.
+            </p>
+          </div>
+        </div>
+
+        <div class="logo-section">
+          <div class="logo-preview">
+            <img
+                v-if="logoUrl"
+                :src="logoUrl"
+                alt="Logo gazdinstva"
+            />
+
+            <div
+                v-else-if="logoLoading"
+                class="logo-placeholder"
+            >
+              <i class="pi pi-spin pi-spinner" />
+
+              <span>
+                Učitavanje...
+              </span>
+            </div>
+
+            <div
+                v-else
+                class="logo-placeholder"
+            >
+              <i class="pi pi-image" />
+
+              <span>
+                Logo nije postavljen
+              </span>
+            </div>
+          </div>
+
+          <div class="logo-controls">
+            <input
+                ref="logoInput"
+                type="file"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                class="hidden-file-input"
+                @change="uploadLogo"
+            />
+
+            <Button
+                :label="
+                  logoUrl
+                    ? 'Promeni logo'
+                    : 'Dodaj logo'
+                "
+                icon="pi pi-upload"
+                :loading="logoUploading"
+                :disabled="
+                  logoUploading ||
+                  logoDeleting ||
+                  logoLoading
+                "
+                @click="openLogoPicker"
+            />
+
+            <Button
+                v-if="logoUrl"
+                label="Obriši logo"
+                icon="pi pi-trash"
+                severity="danger"
+                outlined
+                :loading="logoDeleting"
+                :disabled="
+                  logoUploading ||
+                  logoDeleting
+                "
+                @click="deleteLogo"
+            />
+
+            <small>
+              PNG, JPG ili JPEG. Maksimalno 5 MB.
+            </small>
+          </div>
+        </div>
+      </section>
+
       <section class="settings-section">
         <div class="section-header">
           <div>
@@ -434,7 +673,11 @@ onMounted(
             label="Sačuvaj"
             icon="pi pi-save"
             :loading="saving"
-            :disabled="saving"
+            :disabled="
+              saving ||
+              logoUploading ||
+              logoDeleting
+            "
             @click="saveProfile"
         />
       </div>
@@ -500,6 +743,67 @@ onMounted(
       var(--p-text-muted-color);
 }
 
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.logo-preview {
+  display: flex;
+  width: 220px;
+  height: 140px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0.75rem;
+  border: 1px solid
+  var(--p-content-border-color);
+  border-radius:
+      var(--p-border-radius-md);
+  background:
+      var(--p-surface-50);
+}
+
+.logo-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color:
+      var(--p-text-muted-color);
+  text-align: center;
+}
+
+.logo-placeholder i {
+  font-size: 2rem;
+}
+
+.logo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-controls small {
+  flex-basis: 100%;
+  color:
+      var(--p-text-muted-color);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns:
@@ -546,6 +850,24 @@ onMounted(
 
   .full-width {
     grid-column: auto;
+  }
+
+  .logo-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .logo-preview {
+    width: 100%;
+  }
+
+  .logo-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .logo-controls :deep(.p-button) {
+    width: 100%;
   }
 
   .form-actions :deep(.p-button) {
