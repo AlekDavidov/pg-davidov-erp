@@ -27,6 +27,8 @@ const ledger = ref(null)
 
 const suppliersLoading = ref(false)
 const ledgerLoading = ref(false)
+const exportLoading = ref(false)
+
 const error = ref(null)
 
 const canLoadLedger = computed(() =>
@@ -159,6 +161,99 @@ const loadLedger = async () => {
   }
 }
 
+const resolveExportFilename = contentDisposition => {
+  if (!contentDisposition) {
+    return 'kartica-dobavljaca.xlsx'
+  }
+
+  const encodedFilenameMatch =
+      contentDisposition.match(
+          /filename\*=UTF-8''([^;]+)/
+      )
+
+  if (encodedFilenameMatch) {
+    try {
+      return decodeURIComponent(
+          encodedFilenameMatch[1]
+      )
+    } catch {
+      return encodedFilenameMatch[1]
+    }
+  }
+
+  const filenameMatch =
+      contentDisposition.match(
+          /filename="?([^";]+)"?/
+      )
+
+  if (filenameMatch) {
+    return filenameMatch[1]
+  }
+
+  return 'kartica-dobavljaca.xlsx'
+}
+
+const exportLedger = async () => {
+  error.value = null
+
+  if (!ledger.value) {
+    error.value =
+        'Prvo prikažite karticu dobavljača.'
+
+    return
+  }
+
+  exportLoading.value = true
+
+  try {
+    const result =
+        await supplierLedgerApi.exportLedger(
+            selectedSupplierId.value,
+            formatDateForApi(
+                periodFrom.value
+            ),
+            formatDateForApi(
+                periodTo.value
+            )
+        )
+
+    const filename =
+        resolveExportFilename(
+            result.contentDisposition
+        )
+
+    const blobUrl =
+        window.URL.createObjectURL(
+            result.blob
+        )
+
+    const link =
+        window.document.createElement('a')
+
+    link.href = blobUrl
+    link.download = filename
+
+    window.document.body.appendChild(
+        link
+    )
+
+    link.click()
+    link.remove()
+
+    window.URL.revokeObjectURL(
+        blobUrl
+    )
+  } catch (exportError) {
+    error.value =
+        exportError.response?.data?.message ||
+        exportError.response?.data?.detail ||
+        exportError.message ||
+        'Excel kartica dobavljača nije mogla da bude preuzeta.'
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 const clearLedger = () => {
   ledger.value = null
   error.value = null
@@ -240,7 +335,8 @@ onMounted(
             :loading="ledgerLoading"
             :disabled="
               !canLoadLedger ||
-              suppliersLoading
+              suppliersLoading ||
+              exportLoading
             "
             @click="loadLedger"
         />
@@ -358,6 +454,19 @@ onMounted(
               i povezanih plaćanja.
             </p>
           </div>
+
+          <Button
+              label="Export Excel"
+              icon="pi pi-file-excel"
+              severity="success"
+              outlined
+              :loading="exportLoading"
+              :disabled="
+                exportLoading ||
+                ledgerLoading
+              "
+              @click="exportLedger"
+          />
         </div>
 
         <DataTable
@@ -623,6 +732,10 @@ onMounted(
 }
 
 .table-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -698,6 +811,15 @@ onMounted(
   }
 
   .filter-action :deep(.p-button) {
+    width: 100%;
+  }
+
+  .table-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table-title :deep(.p-button) {
     width: 100%;
   }
 
