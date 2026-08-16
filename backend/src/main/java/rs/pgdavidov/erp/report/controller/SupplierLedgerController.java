@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerExport;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerResponse;
+import rs.pgdavidov.erp.report.dto.SupplierOutstandingBalancesResponse;
 import rs.pgdavidov.erp.report.service.SupplierLedgerExportService;
 import rs.pgdavidov.erp.report.service.SupplierLedgerService;
+import rs.pgdavidov.erp.report.service.SupplierOutstandingBalancesService;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -34,6 +36,30 @@ public class SupplierLedgerController {
 
     private final SupplierLedgerExportService
             supplierLedgerExportService;
+
+    private final SupplierOutstandingBalancesService
+            supplierOutstandingBalancesService;
+
+    @GetMapping("/outstanding-balances")
+    public ResponseEntity<SupplierOutstandingBalancesResponse>
+    getOutstandingBalances(
+            @RequestParam LocalDate periodFrom,
+            @RequestParam LocalDate periodTo,
+            @RequestParam(defaultValue = "true")
+            boolean onlyOutstanding
+    ) {
+        SupplierOutstandingBalancesResponse response =
+                supplierOutstandingBalancesService
+                        .getBalances(
+                                periodFrom,
+                                periodTo,
+                                onlyOutstanding
+                        );
+
+        return ResponseEntity.ok(
+                response
+        );
+    }
 
     @GetMapping("/{supplierId}/ledger")
     public ResponseEntity<SupplierLedgerResponse> getLedger(

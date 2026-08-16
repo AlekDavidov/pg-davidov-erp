@@ -12,6 +12,11 @@ import { supplierApi } from '../api/supplierApi'
 import { supplierLedgerApi } from '../api/supplierLedgerApi'
 import { formatAmount } from '../utils/formatters'
 
+const TAB_OUTSTANDING = 'outstanding'
+const TAB_LEDGER = 'ledger'
+
+const activeTab = ref(TAB_OUTSTANDING)
+
 const suppliers = ref([])
 const selectedSupplierId = ref(null)
 
@@ -23,19 +28,29 @@ const periodTo = ref(
     new Date(new Date().getFullYear(), 11, 31)
 )
 
+const onlyOutstanding = ref(true)
+
+const outstandingBalances = ref(null)
 const ledger = ref(null)
 
 const suppliersLoading = ref(false)
+const outstandingLoading = ref(false)
 const ledgerLoading = ref(false)
 const exportLoading = ref(false)
 
 const error = ref(null)
 
+const canLoadPeriod = computed(() =>
+    Boolean(
+        periodFrom.value &&
+        periodTo.value
+    )
+)
+
 const canLoadLedger = computed(() =>
     Boolean(
         selectedSupplierId.value &&
-        periodFrom.value &&
-        periodTo.value
+        canLoadPeriod.value
     )
 )
 
@@ -44,6 +59,10 @@ const supplierOptions = computed(() =>
       label: supplier.name,
       value: supplier.id
     }))
+)
+
+const outstandingRows = computed(() =>
+    outstandingBalances.value?.suppliers || []
 )
 
 const formatDateForApi = date => {
@@ -90,6 +109,44 @@ const formatLedgerAmount = value => {
   )
 }
 
+const formatOutstandingAmount = (
+    value,
+    currencyCode
+) => {
+  if (
+      value === null ||
+      value === undefined
+  ) {
+    return '—'
+  }
+
+  return formatAmount(
+      value,
+      currencyCode || 'RSD'
+  )
+}
+
+const validatePeriod = () => {
+  if (!canLoadPeriod.value) {
+    error.value =
+        'Izaberite period.'
+
+    return false
+  }
+
+  if (
+      periodFrom.value >
+      periodTo.value
+  ) {
+    error.value =
+        'Početni datum ne može biti posle krajnjeg datuma.'
+
+    return false
+  }
+
+  return true
+}
+
 const loadSuppliers = async () => {
   suppliersLoading.value = true
   error.value = null
@@ -116,6 +173,39 @@ const loadSuppliers = async () => {
   }
 }
 
+const loadOutstandingBalances = async () => {
+  error.value = null
+  outstandingBalances.value = null
+
+  if (!validatePeriod()) {
+    return
+  }
+
+  outstandingLoading.value = true
+
+  try {
+    outstandingBalances.value =
+        await supplierLedgerApi
+            .getOutstandingBalances(
+                formatDateForApi(
+                    periodFrom.value
+                ),
+                formatDateForApi(
+                    periodTo.value
+                ),
+                onlyOutstanding.value
+            )
+  } catch (loadError) {
+    error.value =
+        loadError.response?.data?.message ||
+        loadError.response?.data?.detail ||
+        loadError.message ||
+        'Pregled otvorenih obaveza nije mogao da bude učitan.'
+  } finally {
+    outstandingLoading.value = false
+  }
+}
+
 const loadLedger = async () => {
   error.value = null
   ledger.value = null
@@ -127,13 +217,7 @@ const loadLedger = async () => {
     return
   }
 
-  if (
-      periodFrom.value >
-      periodTo.value
-  ) {
-    error.value =
-        'Početni datum ne može biti posle krajnjeg datuma.'
-
+  if (!validatePeriod()) {
     return
   }
 
@@ -159,6 +243,40 @@ const loadLedger = async () => {
   } finally {
     ledgerLoading.value = false
   }
+}
+
+const openSupplierLedger = async supplier => {
+  selectedSupplierId.value =
+      supplier.supplierId
+
+  activeTab.value =
+      TAB_LEDGER
+
+  ledger.value = null
+  error.value = null
+
+  await loadLedger()
+}
+
+const switchTab = tab => {
+  activeTab.value = tab
+  error.value = null
+}
+
+const handlePeriodChange = () => {
+  outstandingBalances.value = null
+  ledger.value = null
+  error.value = null
+}
+
+const handleOutstandingFilterChange = () => {
+  outstandingBalances.value = null
+  error.value = null
+}
+
+const clearLedger = () => {
+  ledger.value = null
+  error.value = null
 }
 
 const resolveExportFilename = contentDisposition => {
@@ -254,93 +372,57 @@ const exportLedger = async () => {
   }
 }
 
-const clearLedger = () => {
-  ledger.value = null
-  error.value = null
-}
-
-onMounted(
-    loadSuppliers
-)
+onMounted(async () => {
+  await Promise.all([
+    loadSuppliers(),
+    loadOutstandingBalances()
+  ])
+})
 </script>
 
 <template>
-  <div class="supplier-ledger-view">
+  <div class="supplier-reports-view">
     <div class="page-header">
       <div>
-        <h2>Kartica dobavljača</h2>
+        <h2>Izveštaji dobavljača</h2>
 
         <p>
-          Pregled faktura, plaćanja i salda
-          dobavljača za izabrani period.
+          Pregled otvorenih obaveza i
+          knjigovodstvenih kartica dobavljača.
         </p>
       </div>
     </div>
 
-    <div class="filters-card">
-      <div class="filter-field supplier-filter">
-        <label for="supplier">
-          Dobavljač
-        </label>
+    <div class="report-tabs">
+      <button
+          type="button"
+          class="report-tab"
+          :class="{
+            active:
+              activeTab === TAB_OUTSTANDING
+          }"
+          @click="
+            switchTab(TAB_OUTSTANDING)
+          "
+      >
+        <i class="pi pi-wallet" />
+        Otvorene obaveze
+      </button>
 
-        <Select
-            id="supplier"
-            v-model="selectedSupplierId"
-            :options="supplierOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Izaberite dobavljača"
-            filter
-            :loading="suppliersLoading"
-            :disabled="suppliersLoading"
-            fluid
-            @change="clearLedger"
-        />
-      </div>
-
-      <div class="filter-field">
-        <label for="period-from">
-          Period od
-        </label>
-
-        <DatePicker
-            id="period-from"
-            v-model="periodFrom"
-            date-format="dd.mm.yy"
-            show-icon
-            fluid
-            @update:model-value="clearLedger"
-        />
-      </div>
-
-      <div class="filter-field">
-        <label for="period-to">
-          Period do
-        </label>
-
-        <DatePicker
-            id="period-to"
-            v-model="periodTo"
-            date-format="dd.mm.yy"
-            show-icon
-            fluid
-            @update:model-value="clearLedger"
-        />
-      </div>
-
-      <div class="filter-action">
-        <Button
-            label="Prikaži"
-            icon="pi pi-search"
-            :loading="ledgerLoading"
-            :disabled="
-              !canLoadLedger ||
-              suppliersLoading ||
-              exportLoading
-            "
-            @click="loadLedger"
-        />
-      </div>
+      <button
+          type="button"
+          class="report-tab"
+          :class="{
+            active:
+              activeTab === TAB_LEDGER
+          }"
+          @click="
+            switchTab(TAB_LEDGER)
+          "
+      >
+        <i class="pi pi-book" />
+        Kartica dobavljača
+      </button>
     </div>
 
     <Message
@@ -352,224 +434,217 @@ onMounted(
       {{ error }}
     </Message>
 
-    <div
-        v-if="ledger"
-        class="ledger"
+    <template
+        v-if="
+          activeTab === TAB_OUTSTANDING
+        "
     >
-      <div class="ledger-header">
-        <div>
-          <div class="ledger-caption">
-            Dobavljač
-          </div>
+      <div class="filters-card outstanding-filters">
+        <div class="filter-field">
+          <label for="outstanding-period-from">
+            Period od
+          </label>
 
-          <h3>
-            {{ ledger.supplierName }}
-          </h3>
-
-          <div class="supplier-meta">
-            <span>
-              Šifra:
-              <strong>
-                {{ ledger.supplierCode }}
-              </strong>
-            </span>
-
-            <span v-if="ledger.pib">
-              PIB:
-              <strong>
-                {{ ledger.pib }}
-              </strong>
-            </span>
-          </div>
-        </div>
-
-        <div class="ledger-period">
-          <span>Period</span>
-
-          <strong>
-            {{ formatDate(ledger.periodFrom) }}
-            —
-            {{ formatDate(ledger.periodTo) }}
-          </strong>
-        </div>
-      </div>
-
-      <div class="summary-grid">
-        <div class="summary-card">
-          <span>Početno stanje</span>
-
-          <strong>
-            {{
-              formatLedgerAmount(
-                  ledger.openingBalance
-              )
-            }}
-          </strong>
-        </div>
-
-        <div class="summary-card">
-          <span>Fakturisano</span>
-
-          <strong>
-            {{
-              formatLedgerAmount(
-                  ledger.totalInvoiced
-              )
-            }}
-          </strong>
-        </div>
-
-        <div class="summary-card">
-          <span>Plaćeno</span>
-
-          <strong>
-            {{
-              formatLedgerAmount(
-                  ledger.totalPaid
-              )
-            }}
-          </strong>
-        </div>
-
-        <div class="summary-card balance-card">
-          <span>Saldo</span>
-
-          <strong>
-            {{
-              formatLedgerAmount(
-                  ledger.closingBalance
-              )
-            }}
-          </strong>
-        </div>
-      </div>
-
-      <div class="ledger-table-card">
-        <div class="table-title">
-          <div>
-            <h3>Promet</h3>
-
-            <p>
-              Hronološki pregled faktura
-              i povezanih plaćanja.
-            </p>
-          </div>
-
-          <Button
-              label="Export Excel"
-              icon="pi pi-file-excel"
-              severity="success"
-              outlined
-              :loading="exportLoading"
-              :disabled="
-                exportLoading ||
-                ledgerLoading
+          <DatePicker
+              id="outstanding-period-from"
+              v-model="periodFrom"
+              date-format="dd.mm.yy"
+              show-icon
+              fluid
+              @update:model-value="
+                handlePeriodChange
               "
-              @click="exportLedger"
           />
         </div>
 
+        <div class="filter-field">
+          <label for="outstanding-period-to">
+            Period do
+          </label>
+
+          <DatePicker
+              id="outstanding-period-to"
+              v-model="periodTo"
+              date-format="dd.mm.yy"
+              show-icon
+              fluid
+              @update:model-value="
+                handlePeriodChange
+              "
+          />
+        </div>
+
+        <label class="checkbox-field">
+          <input
+              v-model="onlyOutstanding"
+              type="checkbox"
+              @change="
+                handleOutstandingFilterChange
+              "
+          />
+
+          <span>
+            Samo otvorene obaveze
+          </span>
+        </label>
+
+        <div class="filter-action">
+          <Button
+              label="Prikaži"
+              icon="pi pi-search"
+              :loading="outstandingLoading"
+              :disabled="
+                !canLoadPeriod ||
+                outstandingLoading
+              "
+              @click="loadOutstandingBalances"
+          />
+        </div>
+      </div>
+
+      <div class="report-card">
+        <div class="table-title">
+          <div>
+            <h3>Otvorene obaveze</h3>
+
+            <p>
+              Pregled salda po dobavljačima
+              za izabrani period.
+              Klik na dobavljača otvara
+              njegovu karticu.
+            </p>
+          </div>
+
+          <div
+              v-if="outstandingBalances"
+              class="result-count"
+          >
+            {{ outstandingRows.length }} dobavljača
+          </div>
+        </div>
+
         <DataTable
-            :value="ledger.entries"
-            :loading="ledgerLoading"
+            :value="outstandingRows"
+            :loading="outstandingLoading"
+            data-key="supplierId"
             striped-rows
+            row-hover
             responsive-layout="scroll"
-            class="ledger-table"
+            class="outstanding-table"
+            @row-click="
+              openSupplierLedger(
+                $event.data
+              )
+            "
         >
           <template #empty>
-            Za izabrani period nema prometa.
+            <span
+                v-if="
+                  outstandingBalances &&
+                  onlyOutstanding
+                "
+            >
+              Nema otvorenih obaveza
+              za izabrani period.
+            </span>
+
+            <span v-else>
+              Nema podataka za izabrani period.
+            </span>
           </template>
 
           <Column
-              field="date"
-              header="Datum"
-              style="min-width: 8rem"
+              field="supplierName"
+              header="Dobavljač"
+              style="min-width: 14rem"
           >
             <template #body="{ data }">
-              {{ formatDate(data.date) }}
+              <div class="supplier-cell">
+                <strong>
+                  {{ data.supplierName }}
+                </strong>
+
+                <small>
+                  {{ data.supplierCode }}
+                </small>
+              </div>
             </template>
           </Column>
 
           <Column
-              field="invoiceNumber"
-              header="Broj fakture"
+              field="pib"
+              header="PIB"
+              style="min-width: 9rem"
+          >
+            <template #body="{ data }">
+              {{ data.pib || '—' }}
+            </template>
+          </Column>
+
+          <Column
+              field="openingBalance"
+              header="Početno stanje"
               style="min-width: 11rem"
+              body-style="text-align: right"
+              header-style="text-align: right"
           >
             <template #body="{ data }">
               {{
-                data.invoiceNumber || '—'
+                formatOutstandingAmount(
+                    data.openingBalance,
+                    data.currencyCode
+                )
               }}
             </template>
           </Column>
 
           <Column
-              field="statementCode"
-              header="Br. izvoda"
+              field="totalInvoiced"
+              header="Fakturisano"
               style="min-width: 11rem"
+              body-style="text-align: right"
+              header-style="text-align: right"
           >
             <template #body="{ data }">
               {{
-                data.statementCode || '—'
+                formatOutstandingAmount(
+                    data.totalInvoiced,
+                    data.currencyCode
+                )
               }}
             </template>
           </Column>
 
           <Column
-              field="transactionReference"
-              header="Referenca transakcije"
-              style="min-width: 13rem"
-          >
-            <template #body="{ data }">
-              {{
-                data.transactionReference || '—'
-              }}
-            </template>
-          </Column>
-
-          <Column
-              field="paidAmount"
+              field="totalPaid"
               header="Plaćeno"
-              style="min-width: 10rem"
+              style="min-width: 11rem"
               body-style="text-align: right"
               header-style="text-align: right"
           >
             <template #body="{ data }">
               {{
-                formatLedgerAmount(
-                    data.paidAmount
+                formatOutstandingAmount(
+                    data.totalPaid,
+                    data.currencyCode
                 )
               }}
             </template>
           </Column>
 
           <Column
-              field="invoiceAmount"
-              header="Iznos fakture"
-              style="min-width: 10rem"
-              body-style="text-align: right"
-              header-style="text-align: right"
-          >
-            <template #body="{ data }">
-              {{
-                formatLedgerAmount(
-                    data.invoiceAmount
-                )
-              }}
-            </template>
-          </Column>
-
-          <Column
-              field="balance"
+              field="closingBalance"
               header="Saldo"
-              style="min-width: 10rem"
+              style="min-width: 11rem"
               body-style="text-align: right"
               header-style="text-align: right"
           >
             <template #body="{ data }">
               <strong>
                 {{
-                  formatLedgerAmount(
-                      data.balance
+                  formatOutstandingAmount(
+                      data.closingBalance,
+                      data.currencyCode
                   )
                 }}
               </strong>
@@ -577,29 +652,328 @@ onMounted(
           </Column>
         </DataTable>
       </div>
-    </div>
+    </template>
 
-    <div
-        v-else-if="
-          !ledgerLoading &&
-          !error
-        "
-        class="empty-state"
-    >
-      <i class="pi pi-book" />
+    <template v-else>
+      <div class="filters-card ledger-filters">
+        <div class="filter-field supplier-filter">
+          <label for="supplier">
+            Dobavljač
+          </label>
 
-      <h3>Kartica dobavljača</h3>
+          <Select
+              id="supplier"
+              v-model="selectedSupplierId"
+              :options="supplierOptions"
+              option-label="label"
+              option-value="value"
+              placeholder="Izaberite dobavljača"
+              filter
+              :loading="suppliersLoading"
+              :disabled="suppliersLoading"
+              fluid
+              @change="clearLedger"
+          />
+        </div>
 
-      <p>
-        Izaberite dobavljača i period,
-        pa kliknite na „Prikaži“.
-      </p>
-    </div>
+        <div class="filter-field">
+          <label for="ledger-period-from">
+            Period od
+          </label>
+
+          <DatePicker
+              id="ledger-period-from"
+              v-model="periodFrom"
+              date-format="dd.mm.yy"
+              show-icon
+              fluid
+              @update:model-value="
+                handlePeriodChange
+              "
+          />
+        </div>
+
+        <div class="filter-field">
+          <label for="ledger-period-to">
+            Period do
+          </label>
+
+          <DatePicker
+              id="ledger-period-to"
+              v-model="periodTo"
+              date-format="dd.mm.yy"
+              show-icon
+              fluid
+              @update:model-value="
+                handlePeriodChange
+              "
+          />
+        </div>
+
+        <div class="filter-action">
+          <Button
+              label="Prikaži"
+              icon="pi pi-search"
+              :loading="ledgerLoading"
+              :disabled="
+                !canLoadLedger ||
+                suppliersLoading ||
+                exportLoading
+              "
+              @click="loadLedger"
+          />
+        </div>
+      </div>
+
+      <div
+          v-if="ledger"
+          class="ledger"
+      >
+        <div class="ledger-header">
+          <div>
+            <div class="ledger-caption">
+              Dobavljač
+            </div>
+
+            <h3>
+              {{ ledger.supplierName }}
+            </h3>
+
+            <div class="supplier-meta">
+              <span>
+                Šifra:
+                <strong>
+                  {{ ledger.supplierCode }}
+                </strong>
+              </span>
+
+              <span v-if="ledger.pib">
+                PIB:
+                <strong>
+                  {{ ledger.pib }}
+                </strong>
+              </span>
+            </div>
+          </div>
+
+          <div class="ledger-period">
+            <span>Period</span>
+
+            <strong>
+              {{ formatDate(ledger.periodFrom) }}
+              —
+              {{ formatDate(ledger.periodTo) }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span>Početno stanje</span>
+
+            <strong>
+              {{
+                formatLedgerAmount(
+                    ledger.openingBalance
+                )
+              }}
+            </strong>
+          </div>
+
+          <div class="summary-card">
+            <span>Fakturisano</span>
+
+            <strong>
+              {{
+                formatLedgerAmount(
+                    ledger.totalInvoiced
+                )
+              }}
+            </strong>
+          </div>
+
+          <div class="summary-card">
+            <span>Plaćeno</span>
+
+            <strong>
+              {{
+                formatLedgerAmount(
+                    ledger.totalPaid
+                )
+              }}
+            </strong>
+          </div>
+
+          <div class="summary-card balance-card">
+            <span>Saldo</span>
+
+            <strong>
+              {{
+                formatLedgerAmount(
+                    ledger.closingBalance
+                )
+              }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="table-title">
+            <div>
+              <h3>Promet</h3>
+
+              <p>
+                Hronološki pregled faktura
+                i povezanih plaćanja.
+              </p>
+            </div>
+
+            <Button
+                label="Export Excel"
+                icon="pi pi-file-excel"
+                severity="success"
+                outlined
+                :loading="exportLoading"
+                :disabled="
+                  exportLoading ||
+                  ledgerLoading
+                "
+                @click="exportLedger"
+            />
+          </div>
+
+          <DataTable
+              :value="ledger.entries"
+              :loading="ledgerLoading"
+              striped-rows
+              responsive-layout="scroll"
+              class="ledger-table"
+          >
+            <template #empty>
+              Za izabrani period nema prometa.
+            </template>
+
+            <Column
+                field="date"
+                header="Datum"
+                style="min-width: 8rem"
+            >
+              <template #body="{ data }">
+                {{ formatDate(data.date) }}
+              </template>
+            </Column>
+
+            <Column
+                field="invoiceNumber"
+                header="Broj fakture"
+                style="min-width: 11rem"
+            >
+              <template #body="{ data }">
+                {{
+                  data.invoiceNumber || '—'
+                }}
+              </template>
+            </Column>
+
+            <Column
+                field="statementCode"
+                header="Br. izvoda"
+                style="min-width: 11rem"
+            >
+              <template #body="{ data }">
+                {{
+                  data.statementCode || '—'
+                }}
+              </template>
+            </Column>
+
+            <Column
+                field="transactionReference"
+                header="Referenca transakcije"
+                style="min-width: 13rem"
+            >
+              <template #body="{ data }">
+                {{
+                  data.transactionReference || '—'
+                }}
+              </template>
+            </Column>
+
+            <Column
+                field="paidAmount"
+                header="Plaćeno"
+                style="min-width: 10rem"
+                body-style="text-align: right"
+                header-style="text-align: right"
+            >
+              <template #body="{ data }">
+                {{
+                  formatLedgerAmount(
+                      data.paidAmount
+                  )
+                }}
+              </template>
+            </Column>
+
+            <Column
+                field="invoiceAmount"
+                header="Iznos fakture"
+                style="min-width: 10rem"
+                body-style="text-align: right"
+                header-style="text-align: right"
+            >
+              <template #body="{ data }">
+                {{
+                  formatLedgerAmount(
+                      data.invoiceAmount
+                  )
+                }}
+              </template>
+            </Column>
+
+            <Column
+                field="balance"
+                header="Saldo"
+                style="min-width: 10rem"
+                body-style="text-align: right"
+                header-style="text-align: right"
+            >
+              <template #body="{ data }">
+                <strong>
+                  {{
+                    formatLedgerAmount(
+                        data.balance
+                    )
+                  }}
+                </strong>
+              </template>
+            </Column>
+          </DataTable>
+        </div>
+      </div>
+
+      <div
+          v-else-if="
+            !ledgerLoading &&
+            !error
+          "
+          class="empty-state"
+      >
+        <i class="pi pi-book" />
+
+        <h3>Kartica dobavljača</h3>
+
+        <p>
+          Izaberite dobavljača i period,
+          pa kliknite na „Prikaži“.
+        </p>
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.supplier-ledger-view {
+.supplier-reports-view {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -615,13 +989,40 @@ onMounted(
   opacity: 0.7;
 }
 
+.report-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid
+  var(--p-content-border-color);
+}
+
+.report-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--p-text-muted-color);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report-tab:hover {
+  color: var(--p-text-color);
+}
+
+.report-tab.active {
+  border-bottom-color:
+      var(--p-primary-color);
+  color:
+      var(--p-primary-color);
+}
+
 .filters-card {
   display: grid;
-  grid-template-columns:
-    minmax(18rem, 2fr)
-    minmax(11rem, 1fr)
-    minmax(11rem, 1fr)
-    auto;
   gap: 1rem;
   align-items: end;
   padding: 1.25rem;
@@ -631,6 +1032,22 @@ onMounted(
       var(--p-border-radius-md);
   background:
       var(--p-content-background);
+}
+
+.outstanding-filters {
+  grid-template-columns:
+    minmax(11rem, 1fr)
+    minmax(11rem, 1fr)
+    minmax(14rem, auto)
+    auto;
+}
+
+.ledger-filters {
+  grid-template-columns:
+    minmax(18rem, 2fr)
+    minmax(11rem, 1fr)
+    minmax(11rem, 1fr)
+    auto;
 }
 
 .filter-field {
@@ -643,9 +1060,80 @@ onMounted(
   font-weight: 600;
 }
 
+.checkbox-field {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.checkbox-field input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color:
+      var(--p-primary-color);
+}
+
 .filter-action {
   display: flex;
   align-items: flex-end;
+}
+
+.report-card {
+  padding: 1.25rem;
+  border: 1px solid
+  var(--p-content-border-color);
+  border-radius:
+      var(--p-border-radius-md);
+  background:
+      var(--p-content-background);
+}
+
+.table-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.table-title h3 {
+  margin: 0;
+}
+
+.table-title p {
+  margin: 0.35rem 0 0;
+  color:
+      var(--p-text-muted-color);
+}
+
+.result-count {
+  flex-shrink: 0;
+  color:
+      var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+
+.supplier-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.supplier-cell small {
+  color:
+      var(--p-text-muted-color);
+}
+
+.outstanding-table {
+  width: 100%;
+}
+
+.outstanding-table
+:deep(.p-datatable-tbody > tr) {
+  cursor: pointer;
 }
 
 .ledger {
@@ -721,34 +1209,6 @@ onMounted(
   border-width: 2px;
 }
 
-.ledger-table-card {
-  padding: 1.25rem;
-  border: 1px solid
-  var(--p-content-border-color);
-  border-radius:
-      var(--p-border-radius-md);
-  background:
-      var(--p-content-background);
-}
-
-.table-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.table-title h3 {
-  margin: 0;
-}
-
-.table-title p {
-  margin: 0.35rem 0 0;
-  color:
-      var(--p-text-muted-color);
-}
-
 .ledger-table {
   width: 100%;
 }
@@ -785,7 +1245,8 @@ onMounted(
 }
 
 @media (max-width: 960px) {
-  .filters-card {
+  .outstanding-filters,
+  .ledger-filters {
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
   }
@@ -801,7 +1262,26 @@ onMounted(
 }
 
 @media (max-width: 640px) {
-  .filters-card,
+  .report-tabs {
+    flex-direction: column;
+    border-bottom: 0;
+  }
+
+  .report-tab {
+    justify-content: flex-start;
+    border: 1px solid
+    var(--p-content-border-color);
+    border-radius:
+        var(--p-border-radius-md);
+  }
+
+  .report-tab.active {
+    border-color:
+        var(--p-primary-color);
+  }
+
+  .outstanding-filters,
+  .ledger-filters,
   .summary-grid {
     grid-template-columns: 1fr;
   }
