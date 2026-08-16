@@ -5,6 +5,25 @@ const BASE_URL =
 
 export const supplierLedgerApi = {
 
+    async getOutstandingBalances(
+        periodFrom,
+        periodTo,
+        onlyOutstanding = true
+    ) {
+        const response = await axios.get(
+            `${BASE_URL}/outstanding-balances`,
+            {
+                params: {
+                    periodFrom,
+                    periodTo,
+                    onlyOutstanding
+                }
+            }
+        )
+
+        return response.data
+    },
+
     async getLedger(
         supplierId,
         periodFrom,
