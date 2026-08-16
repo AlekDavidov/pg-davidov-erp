@@ -35,6 +35,7 @@ const ledger = ref(null)
 
 const suppliersLoading = ref(false)
 const outstandingLoading = ref(false)
+const outstandingExportLoading = ref(false)
 const ledgerLoading = ref(false)
 const exportLoading = ref(false)
 
@@ -279,9 +280,12 @@ const clearLedger = () => {
   error.value = null
 }
 
-const resolveExportFilename = contentDisposition => {
+const resolveExportFilename = (
+    contentDisposition,
+    fallbackFilename
+) => {
   if (!contentDisposition) {
-    return 'kartica-dobavljaca.xlsx'
+    return fallbackFilename
   }
 
   const encodedFilenameMatch =
@@ -308,7 +312,79 @@ const resolveExportFilename = contentDisposition => {
     return filenameMatch[1]
   }
 
-  return 'kartica-dobavljaca.xlsx'
+  return fallbackFilename
+}
+
+const downloadBlob = (
+    blob,
+    contentDisposition,
+    fallbackFilename
+) => {
+  const filename =
+      resolveExportFilename(
+          contentDisposition,
+          fallbackFilename
+      )
+
+  const blobUrl =
+      window.URL.createObjectURL(
+          blob
+      )
+
+  const link =
+      window.document.createElement('a')
+
+  link.href = blobUrl
+  link.download = filename
+
+  window.document.body.appendChild(
+      link
+  )
+
+  link.click()
+  link.remove()
+
+  window.URL.revokeObjectURL(
+      blobUrl
+  )
+}
+
+const exportOutstandingBalances = async () => {
+  error.value = null
+
+  if (!validatePeriod()) {
+    return
+  }
+
+  outstandingExportLoading.value = true
+
+  try {
+    const result =
+        await supplierLedgerApi
+            .exportOutstandingBalances(
+                formatDateForApi(
+                    periodFrom.value
+                ),
+                formatDateForApi(
+                    periodTo.value
+                ),
+                onlyOutstanding.value
+            )
+
+    downloadBlob(
+        result.blob,
+        result.contentDisposition,
+        'otvorene-obaveze.xlsx'
+    )
+  } catch (exportError) {
+    error.value =
+        exportError.response?.data?.message ||
+        exportError.response?.data?.detail ||
+        exportError.message ||
+        'Excel pregled obaveza nije mogao da bude preuzet.'
+  } finally {
+    outstandingExportLoading.value = false
+  }
 }
 
 const exportLedger = async () => {
@@ -335,31 +411,10 @@ const exportLedger = async () => {
             )
         )
 
-    const filename =
-        resolveExportFilename(
-            result.contentDisposition
-        )
-
-    const blobUrl =
-        window.URL.createObjectURL(
-            result.blob
-        )
-
-    const link =
-        window.document.createElement('a')
-
-    link.href = blobUrl
-    link.download = filename
-
-    window.document.body.appendChild(
-        link
-    )
-
-    link.click()
-    link.remove()
-
-    window.URL.revokeObjectURL(
-        blobUrl
+    downloadBlob(
+        result.blob,
+        result.contentDisposition,
+        'kartica-dobavljaca.xlsx'
     )
   } catch (exportError) {
     error.value =
@@ -495,7 +550,8 @@ onMounted(async () => {
               :loading="outstandingLoading"
               :disabled="
                 !canLoadPeriod ||
-                outstandingLoading
+                outstandingLoading ||
+                outstandingExportLoading
               "
               @click="loadOutstandingBalances"
           />
@@ -515,11 +571,30 @@ onMounted(async () => {
             </p>
           </div>
 
-          <div
-              v-if="outstandingBalances"
-              class="result-count"
-          >
-            {{ outstandingRows.length }} dobavljača
+          <div class="table-actions">
+            <div
+                v-if="outstandingBalances"
+                class="result-count"
+            >
+              {{
+                outstandingRows.length
+              }}
+              dobavljača
+            </div>
+
+            <Button
+                label="Export Excel"
+                icon="pi pi-file-excel"
+                severity="success"
+                outlined
+                :loading="outstandingExportLoading"
+                :disabled="
+                  !canLoadPeriod ||
+                  outstandingLoading ||
+                  outstandingExportLoading
+                "
+                @click="exportOutstandingBalances"
+            />
           </div>
         </div>
 
@@ -1109,6 +1184,12 @@ onMounted(async () => {
       var(--p-text-muted-color);
 }
 
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .result-count {
   flex-shrink: 0;
   color:
@@ -1299,7 +1380,13 @@ onMounted(async () => {
     align-items: stretch;
   }
 
-  .table-title :deep(.p-button) {
+  .table-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table-actions :deep(.p-button),
+  .table-title > :deep(.p-button) {
     width: 100%;
   }
 

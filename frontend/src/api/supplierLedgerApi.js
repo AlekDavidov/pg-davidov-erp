@@ -24,6 +24,32 @@ export const supplierLedgerApi = {
         return response.data
     },
 
+    async exportOutstandingBalances(
+        periodFrom,
+        periodTo,
+        onlyOutstanding = true
+    ) {
+        const response = await axios.get(
+            `${BASE_URL}/outstanding-balances/export`,
+            {
+                params: {
+                    periodFrom,
+                    periodTo,
+                    onlyOutstanding
+                },
+                responseType: 'blob'
+            }
+        )
+
+        return {
+            blob: response.data,
+            contentDisposition:
+                response.headers[
+                    'content-disposition'
+                    ]
+        }
+    },
+
     async getLedger(
         supplierId,
         periodFrom,

@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerExport;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerResponse;
+import rs.pgdavidov.erp.report.dto.SupplierOutstandingBalancesExport;
 import rs.pgdavidov.erp.report.dto.SupplierOutstandingBalancesResponse;
 import rs.pgdavidov.erp.report.service.SupplierLedgerExportService;
 import rs.pgdavidov.erp.report.service.SupplierLedgerService;
+import rs.pgdavidov.erp.report.service.SupplierOutstandingBalancesExportService;
 import rs.pgdavidov.erp.report.service.SupplierOutstandingBalancesService;
 
 import java.nio.charset.StandardCharsets;
@@ -40,6 +42,9 @@ public class SupplierLedgerController {
     private final SupplierOutstandingBalancesService
             supplierOutstandingBalancesService;
 
+    private final SupplierOutstandingBalancesExportService
+            supplierOutstandingBalancesExportService;
+
     @GetMapping("/outstanding-balances")
     public ResponseEntity<SupplierOutstandingBalancesResponse>
     getOutstandingBalances(
@@ -61,6 +66,47 @@ public class SupplierLedgerController {
         );
     }
 
+    @GetMapping("/outstanding-balances/export")
+    public ResponseEntity<byte[]> exportOutstandingBalances(
+            @RequestParam LocalDate periodFrom,
+            @RequestParam LocalDate periodTo,
+            @RequestParam(defaultValue = "true")
+            boolean onlyOutstanding
+    ) {
+        SupplierOutstandingBalancesExport export =
+                supplierOutstandingBalancesExportService
+                        .export(
+                                periodFrom,
+                                periodTo,
+                                onlyOutstanding
+                        );
+
+        ContentDisposition contentDisposition =
+                ContentDisposition
+                        .attachment()
+                        .filename(
+                                export.filename(),
+                                StandardCharsets.UTF_8
+                        )
+                        .build();
+
+        return ResponseEntity
+                .ok()
+                .contentType(
+                        XLSX_MEDIA_TYPE
+                )
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        contentDisposition.toString()
+                )
+                .contentLength(
+                        export.content().length
+                )
+                .body(
+                        export.content()
+                );
+    }
+
     @GetMapping("/{supplierId}/ledger")
     public ResponseEntity<SupplierLedgerResponse> getLedger(
             @PathVariable UUID supplierId,
@@ -74,7 +120,9 @@ public class SupplierLedgerController {
                         periodTo
                 );
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                response
+        );
     }
 
     @GetMapping("/{supplierId}/ledger/export")
