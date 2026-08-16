@@ -17,6 +17,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import rs.pgdavidov.erp.company.dto.CompanyProfileResponse;
+import rs.pgdavidov.erp.company.service.CompanyProfileService;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerEntryResponse;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerExport;
 import rs.pgdavidov.erp.report.dto.SupplierLedgerResponse;
@@ -43,6 +45,7 @@ public class SupplierLedgerExportService {
             DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final SupplierLedgerService supplierLedgerService;
+    private final CompanyProfileService companyProfileService;
 
     public SupplierLedgerExport export(
             UUID supplierId,
@@ -55,6 +58,11 @@ public class SupplierLedgerExportService {
                         periodFrom,
                         periodTo
                 );
+
+        CompanyProfileResponse companyProfile =
+                companyProfileService
+                        .getProfile()
+                        .orElse(null);
 
         try (
                 Workbook workbook = new XSSFWorkbook();
@@ -70,6 +78,7 @@ public class SupplierLedgerExportService {
             createHeader(
                     sheet,
                     ledger,
+                    companyProfile,
                     styles
             );
 
@@ -79,7 +88,7 @@ public class SupplierLedgerExportService {
                     styles
             );
 
-            int tableHeaderRowIndex = 12;
+            int tableHeaderRowIndex = 16;
 
             createTableHeader(
                     sheet,
@@ -132,6 +141,7 @@ public class SupplierLedgerExportService {
     private void createHeader(
             Sheet sheet,
             SupplierLedgerResponse ledger,
+            CompanyProfileResponse companyProfile,
             Styles styles
     ) {
         Row titleRow = sheet.createRow(0);
@@ -145,16 +155,87 @@ public class SupplierLedgerExportService {
                 new CellRangeAddress(0, 0, 0, 6)
         );
 
-        Row companyRow = sheet.createRow(2);
-        companyRow.setHeightInPoints(22);
+        if (companyProfile != null) {
+            Row companyRow = sheet.createRow(2);
+            companyRow.setHeightInPoints(22);
 
-        Cell companyCell = companyRow.createCell(0);
-        companyCell.setCellValue("PG Davidov");
-        companyCell.setCellStyle(styles.companyTitle());
+            Cell companyCell = companyRow.createCell(0);
+            companyCell.setCellValue(
+                    resolveText(companyProfile.name())
+            );
+            companyCell.setCellStyle(styles.companyTitle());
 
-        sheet.addMergedRegion(
-                new CellRangeAddress(2, 2, 0, 2)
-        );
+            sheet.addMergedRegion(
+                    new CellRangeAddress(2, 2, 0, 2)
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    3,
+                    "PIB: ",
+                    companyProfile.pib(),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    4,
+                    "Matični broj: ",
+                    companyProfile.registrationNumber(),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    5,
+                    "",
+                    companyProfile.address(),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    6,
+                    "",
+                    formatCity(
+                            companyProfile.postalCode(),
+                            companyProfile.city()
+                    ),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    7,
+                    "Telefon: ",
+                    companyProfile.phone(),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    8,
+                    "Email: ",
+                    companyProfile.email(),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    9,
+                    "Banka: ",
+                    companyProfile.bankName(),
+                    styles
+            );
+
+            createCompanyInfoRow(
+                    sheet,
+                    10,
+                    "Račun: ",
+                    companyProfile.bankAccountNumber(),
+                    styles
+            );
+        }
 
         createHeaderValueRow(
                 sheet,
@@ -188,6 +269,37 @@ public class SupplierLedgerExportService {
                         + " - "
                         + formatDate(ledger.periodTo()),
                 styles
+        );
+    }
+
+    private void createCompanyInfoRow(
+            Sheet sheet,
+            int rowIndex,
+            String label,
+            String value,
+            Styles styles
+    ) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+
+        Row row = sheet.getRow(rowIndex);
+
+        if (row == null) {
+            row = sheet.createRow(rowIndex);
+        }
+
+        Cell cell = row.createCell(0);
+        cell.setCellValue(label + value);
+        cell.setCellStyle(styles.value());
+
+        sheet.addMergedRegion(
+                new CellRangeAddress(
+                        rowIndex,
+                        rowIndex,
+                        0,
+                        2
+                )
         );
     }
 
@@ -228,8 +340,8 @@ public class SupplierLedgerExportService {
             SupplierLedgerResponse ledger,
             Styles styles
     ) {
-        Row labelRow = sheet.createRow(8);
-        Row valueRow = sheet.createRow(9);
+        Row labelRow = sheet.createRow(12);
+        Row valueRow = sheet.createRow(13);
 
         labelRow.setHeightInPoints(22);
         valueRow.setHeightInPoints(26);
@@ -1003,6 +1115,23 @@ public class SupplierLedgerExportService {
 
         return DISPLAY_DATE_FORMAT
                 .format(date);
+    }
+
+    private String formatCity(
+            String postalCode,
+            String city
+    ) {
+        String postal =
+                postalCode == null
+                        ? ""
+                        : postalCode.trim();
+
+        String cityName =
+                city == null
+                        ? ""
+                        : city.trim();
+
+        return (postal + " " + cityName).trim();
     }
 
     private String resolveText(

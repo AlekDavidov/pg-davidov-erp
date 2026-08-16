@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import BankAccountsView from '../views/BankAccountsView.vue'
 import BankImportView from '../views/BankImportView.vue'
 import CategoriesView from '../views/CategoriesView.vue'
+import CompanySettingsView from '../views/CompanySettingsView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import InvoicesView from '../views/InvoicesView.vue'
 import PaymentMethodsView from '../views/PaymentMethodsView.vue'
@@ -12,8 +13,7 @@ import SuppliersView from '../views/SuppliersView.vue'
 import TransactionsView from '../views/TransactionsView.vue'
 
 const placeholderRoutes = [
-    { path: 'documents', title: 'Documents' },
-    { path: 'settings', title: 'Settings' }
+    { path: 'documents', title: 'Documents' }
 ]
 
 export default createRouter({
@@ -64,6 +64,11 @@ export default createRouter({
             path: '/reports',
             name: 'reports',
             component: SupplierLedgerView
+        },
+        {
+            path: '/settings',
+            name: 'settings',
+            component: CompanySettingsView
         },
         ...placeholderRoutes.map(route => ({
             path: `/${route.path}`,
