@@ -15,6 +15,7 @@ import rs.pgdavidov.erp.report.dto.SupplierLedgerResponse;
 import rs.pgdavidov.erp.supplier.entity.Supplier;
 import rs.pgdavidov.erp.supplier.repository.SupplierRepository;
 import rs.pgdavidov.erp.transaction.entity.Transaction;
+import rs.pgdavidov.erp.transaction.repository.TransactionRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -43,6 +44,8 @@ public class SupplierLedgerService {
 
     private final InvoicePaymentRepository
             invoicePaymentRepository;
+
+    private final TransactionRepository transactionRepository;
 
     private final BankStatementRowRepository
             bankStatementRowRepository;
@@ -82,10 +85,18 @@ public class SupplierLedgerService {
                                 periodFrom
                         );
 
+        List<Transaction> directTransactionsBeforePeriod =
+                transactionRepository
+                        .findUnallocatedSupplierDebitTransactionsBefore(
+                                supplierId,
+                                periodFrom
+                        );
+
         BigDecimal openingBalance =
                 calculateOpeningBalance(
                         invoicesBeforePeriod,
-                        paymentsBeforePeriod
+                        paymentsBeforePeriod,
+                        directTransactionsBeforePeriod
                 );
 
         List<Invoice> invoicesInPeriod =
@@ -104,10 +115,19 @@ public class SupplierLedgerService {
                                 periodTo
                         );
 
+        List<Transaction> directTransactionsInPeriod =
+                transactionRepository
+                        .findUnallocatedSupplierDebitTransactionsBetween(
+                                supplierId,
+                                periodFrom,
+                                periodTo
+                        );
+
         List<LedgerEvent> events =
                 createEvents(
                         invoicesInPeriod,
-                        paymentsInPeriod
+                        paymentsInPeriod,
+                        directTransactionsInPeriod
                 );
 
         List<SupplierLedgerEntryResponse> entries =
@@ -125,7 +145,7 @@ public class SupplierLedgerService {
                                 BigDecimal::add
                         );
 
-        BigDecimal totalPaid =
+        BigDecimal invoicePaymentsTotal =
                 paymentsInPeriod
                         .stream()
                         .map(InvoicePayment::getAmount)
@@ -133,6 +153,19 @@ public class SupplierLedgerService {
                                 ZERO,
                                 BigDecimal::add
                         );
+
+        BigDecimal directPaymentsTotal =
+                directTransactionsInPeriod
+                        .stream()
+                        .map(Transaction::getDebit)
+                        .reduce(
+                                ZERO,
+                                BigDecimal::add
+                        );
+
+        BigDecimal totalPaid =
+                invoicePaymentsTotal
+                        .add(directPaymentsTotal);
 
         BigDecimal closingBalance =
                 openingBalance
@@ -144,7 +177,9 @@ public class SupplierLedgerService {
                         invoicesBeforePeriod,
                         invoicesInPeriod,
                         paymentsBeforePeriod,
-                        paymentsInPeriod
+                        paymentsInPeriod,
+                        directTransactionsBeforePeriod,
+                        directTransactionsInPeriod
                 );
 
         return new SupplierLedgerResponse(
@@ -165,7 +200,8 @@ public class SupplierLedgerService {
 
     private BigDecimal calculateOpeningBalance(
             List<Invoice> invoices,
-            List<InvoicePayment> payments
+            List<InvoicePayment> payments,
+            List<Transaction> directTransactions
     ) {
         BigDecimal invoicedBeforePeriod =
                 invoices
@@ -176,7 +212,7 @@ public class SupplierLedgerService {
                                 BigDecimal::add
                         );
 
-        BigDecimal paidBeforePeriod =
+        BigDecimal invoicePaymentsBeforePeriod =
                 payments
                         .stream()
                         .map(InvoicePayment::getAmount)
@@ -185,13 +221,27 @@ public class SupplierLedgerService {
                                 BigDecimal::add
                         );
 
+        BigDecimal directPaymentsBeforePeriod =
+                directTransactions
+                        .stream()
+                        .map(Transaction::getDebit)
+                        .reduce(
+                                ZERO,
+                                BigDecimal::add
+                        );
+
+        BigDecimal paidBeforePeriod =
+                invoicePaymentsBeforePeriod
+                        .add(directPaymentsBeforePeriod);
+
         return invoicedBeforePeriod
                 .subtract(paidBeforePeriod);
     }
 
     private List<LedgerEvent> createEvents(
             List<Invoice> invoices,
-            List<InvoicePayment> payments
+            List<InvoicePayment> payments,
+            List<Transaction> directTransactions
     ) {
         List<LedgerEvent> events =
                 new ArrayList<>();
@@ -208,6 +258,14 @@ public class SupplierLedgerService {
             events.add(
                     createPaymentEvent(
                             payment
+                    )
+            );
+        }
+
+        for (Transaction transaction : directTransactions) {
+            events.add(
+                    createDirectPaymentEvent(
+                            transaction
                     )
             );
         }
@@ -250,6 +308,29 @@ public class SupplierLedgerService {
                 statementCode,
                 transaction.getReference(),
                 payment.getAmount(),
+                transaction.getCurrencyCode()
+        );
+    }
+
+    private LedgerEvent createDirectPaymentEvent(
+            Transaction transaction
+    ) {
+        String statementCode =
+                resolveStatementCode(
+                        transaction
+                );
+
+        return new LedgerEvent(
+                transaction.getId(),
+                transaction.getTransactionDate(),
+                TYPE_PAYMENT,
+                1,
+                null,
+                null,
+                transaction.getId(),
+                statementCode,
+                transaction.getReference(),
+                transaction.getDebit(),
                 transaction.getCurrencyCode()
         );
     }
@@ -338,7 +419,9 @@ public class SupplierLedgerService {
             List<Invoice> invoicesBeforePeriod,
             List<Invoice> invoicesInPeriod,
             List<InvoicePayment> paymentsBeforePeriod,
-            List<InvoicePayment> paymentsInPeriod
+            List<InvoicePayment> paymentsInPeriod,
+            List<Transaction> directTransactionsBeforePeriod,
+            List<Transaction> directTransactionsInPeriod
     ) {
         List<String> currencyCodes =
                 new ArrayList<>();
@@ -362,6 +445,16 @@ public class SupplierLedgerService {
         paymentsInPeriod
                 .stream()
                 .map(InvoicePayment::getTransaction)
+                .map(Transaction::getCurrencyCode)
+                .forEach(currencyCodes::add);
+
+        directTransactionsBeforePeriod
+                .stream()
+                .map(Transaction::getCurrencyCode)
+                .forEach(currencyCodes::add);
+
+        directTransactionsInPeriod
+                .stream()
                 .map(Transaction::getCurrencyCode)
                 .forEach(currencyCodes::add);
 
