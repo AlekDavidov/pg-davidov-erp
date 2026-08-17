@@ -17,6 +17,8 @@ frontend/dist/
 
 storage/
 backups/
+backup-test/
+backup-v1-clean/
 
 .DS_Store
 Thumbs.db
