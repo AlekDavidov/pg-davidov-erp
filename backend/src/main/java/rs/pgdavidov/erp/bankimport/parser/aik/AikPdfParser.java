@@ -50,6 +50,11 @@ public class AikPdfParser
                     "^\\d{2}\\.\\d{2}\\.\\d{2}$"
             );
 
+    private static final Pattern SHORT_DATE_SEARCH_PATTERN =
+            Pattern.compile(
+                    "(\\d{2}\\.\\d{2}\\.\\d{2})"
+            );
+
     private static final Pattern LONG_DATE_PATTERN =
             Pattern.compile(
                     "\\b(\\d{2}\\.\\d{2}\\.\\d{4})\\b"
@@ -511,6 +516,8 @@ public class AikPdfParser
         LocalDate transactionDate =
                 extractTransactionDate(
                         headerWords,
+                        band,
+                        anchor.top(),
                         entryNumber
                 );
 
@@ -672,6 +679,8 @@ public class AikPdfParser
 
     private LocalDate extractTransactionDate(
             List<PdfWord> headerWords,
+            List<PdfWord> band,
+            float anchorTop,
             int entryNumber
     ) {
         Optional<String> dateText =
@@ -684,6 +693,68 @@ public class AikPdfParser
                                         .matches()
                         )
                         .findFirst();
+
+        if (dateText.isEmpty()) {
+            dateText =
+                    band
+                            .stream()
+                            .filter(word ->
+                                    SHORT_DATE_PATTERN
+                                            .matcher(
+                                                    word.text()
+                                            )
+                                            .matches()
+                            )
+                            .min(
+                                    Comparator.comparingDouble(
+                                            word ->
+                                                    Math.abs(
+                                                            word.top()
+                                                                    - anchorTop
+                                                    )
+                                    )
+                            )
+                            .map(PdfWord::text);
+        }
+
+        if (dateText.isEmpty()) {
+            String reconstructedHeader =
+                    band
+                            .stream()
+                            .filter(word ->
+                                    Math.abs(
+                                            word.top()
+                                                    - anchorTop
+                                    ) <= 8F
+                            )
+                            .filter(word ->
+                                    word.x0() < 160F
+                            )
+                            .sorted(
+                                    Comparator.comparing(
+                                            PdfWord::x0
+                                    )
+                            )
+                            .map(PdfWord::text)
+                            .reduce(
+                                    "",
+                                    (left, right) ->
+                                            left + right
+                            );
+
+            Matcher dateMatcher =
+                    SHORT_DATE_SEARCH_PATTERN
+                            .matcher(
+                                    reconstructedHeader
+                            );
+
+            if (dateMatcher.find()) {
+                dateText =
+                        Optional.of(
+                                dateMatcher.group(1)
+                        );
+            }
+        }
 
         if (dateText.isEmpty()) {
             throw new BankStatementParseException(
