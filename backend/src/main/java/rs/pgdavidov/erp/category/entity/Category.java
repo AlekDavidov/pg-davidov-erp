@@ -32,4 +32,10 @@ public class Category extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(
+            name = "include_in_financial_report",
+            nullable = false
+    )
+    private boolean includeInFinancialReport = true;
 }

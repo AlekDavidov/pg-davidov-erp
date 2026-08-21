@@ -53,7 +53,8 @@ const categoryTypes = [
 const form = reactive({
   name: '',
   categoryType: null,
-  active: true
+  active: true,
+  includeInFinancialReport: true
 })
 
 const isEditMode = computed(() =>
@@ -70,6 +71,7 @@ const resetForm = () => {
   form.name = ''
   form.categoryType = null
   form.active = true
+  form.includeInFinancialReport = true
 
   submitted.value = false
   dialogError.value = null
@@ -79,6 +81,8 @@ const populateForm = category => {
   form.name = category.name || ''
   form.categoryType = category.categoryType || null
   form.active = category.active
+  form.includeInFinancialReport =
+      category.includeInFinancialReport ?? true
 
   submitted.value = false
   dialogError.value = null
@@ -101,7 +105,9 @@ const isFormValid = () =>
 const buildRequest = () => ({
   name: form.name.trim(),
   categoryType: form.categoryType,
-  active: form.active
+  active: form.active,
+  includeInFinancialReport:
+  form.includeInFinancialReport
 })
 
 const saveCategory = async () => {
@@ -162,8 +168,8 @@ watch(
       :dismissable-mask="!saving"
       :style="{ width: '36rem' }"
       :breakpoints="{
-            '640px': '95vw'
-        }"
+        '640px': '95vw'
+      }"
       @update:visible="emit('update:visible', $event)"
   >
     <div class="category-form">
@@ -206,9 +212,9 @@ watch(
               id="category-name"
               v-model="form.name"
               :invalid="
-                            submitted &&
-                            !form.name.trim()
-                        "
+                submitted &&
+                !form.name.trim()
+              "
               :disabled="saving"
               maxlength="100"
               fluid
@@ -216,9 +222,9 @@ watch(
 
           <small
               v-if="
-                            submitted &&
-                            !form.name.trim()
-                        "
+                submitted &&
+                !form.name.trim()
+              "
               class="field-error"
           >
             Naziv je obavezan.
@@ -239,18 +245,18 @@ watch(
               option-value="value"
               placeholder="Izaberite tip"
               :invalid="
-                            submitted &&
-                            !form.categoryType
-                        "
+                submitted &&
+                !form.categoryType
+              "
               :disabled="saving"
               fluid
           />
 
           <small
               v-if="
-                            submitted &&
-                            !form.categoryType
-                        "
+                submitted &&
+                !form.categoryType
+              "
               class="field-error"
           >
             Tip kategorije je obavezan.
@@ -269,6 +275,25 @@ watch(
               Aktivna kategorija
             </label>
           </div>
+        </div>
+
+        <div class="form-field">
+          <div class="active-field">
+            <ToggleSwitch
+                input-id="category-financial-report"
+                v-model="form.includeInFinancialReport"
+                :disabled="saving"
+            />
+
+            <label for="category-financial-report">
+              Uključi u finansijske izveštaje
+            </label>
+          </div>
+
+          <small class="field-help">
+            Isključite za kategorije kao što su interni prenosi
+            između sopstvenih računa.
+          </small>
         </div>
       </div>
     </div>

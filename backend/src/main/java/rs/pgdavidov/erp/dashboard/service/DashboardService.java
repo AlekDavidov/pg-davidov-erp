@@ -80,6 +80,12 @@ public class DashboardService {
                         )
                         .toList();
 
+        List<Transaction> financialTransactions =
+                transactions
+                        .stream()
+                        .filter(this::isIncludedInFinancialReport)
+                        .toList();
+
         List<Invoice> invoices =
                 invoiceRepository
                         .findAll()
@@ -96,27 +102,27 @@ public class DashboardService {
 
         DashboardKpiResponse income =
                 createKpi(
-                        transactions,
+                        financialTransactions,
                         selectedPeriod,
                         Transaction::getCredit
                 );
 
         DashboardKpiResponse expense =
                 createKpi(
-                        transactions,
+                        financialTransactions,
                         selectedPeriod,
                         Transaction::getDebit
                 );
 
         List<CashFlowPointResponse> cashFlow =
                 createCashFlow(
-                        transactions,
+                        financialTransactions,
                         selectedPeriod
                 );
 
         List<ExpenseCategoryResponse> expenseCategories =
                 createExpenseCategories(
-                        transactions,
+                        financialTransactions,
                         selectedPeriod
                 );
 
@@ -671,6 +677,15 @@ public class DashboardService {
     ) {
         return transaction.getStatus()
                 != TransactionStatus.CANCELLED;
+    }
+
+    private boolean isIncludedInFinancialReport(
+            Transaction transaction
+    ) {
+        return transaction.getCategory() == null
+                || transaction
+                .getCategory()
+                .isIncludeInFinancialReport();
     }
 
     private static final class MonthlyAmounts {
