@@ -15,7 +15,6 @@ import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
-import ToggleSwitch from 'primevue/toggleswitch'
 
 import { bankAccountApi } from '../../api/bankAccountApi'
 import { categoryApi } from '../../api/categoryApi'
@@ -125,7 +124,6 @@ const form = reactive({
   reference: '',
   status: 'NEW',
   source: 'MANUAL',
-  verified: false,
   notes: ''
 })
 
@@ -186,7 +184,6 @@ const resetForm = () => {
   form.reference = ''
   form.status = 'NEW'
   form.source = 'MANUAL'
-  form.verified = false
   form.notes = ''
 
   submitted.value = false
@@ -274,9 +271,6 @@ const populateForm = transaction => {
 
   form.source =
       transaction.source || 'MANUAL'
-
-  form.verified =
-      Boolean(transaction.verified)
 
   form.notes =
       transaction.notes || ''
@@ -396,9 +390,6 @@ const buildRequest = () => {
 
     source:
     form.source,
-
-    verified:
-    form.verified,
 
     notes:
         form.notes.trim() || null
@@ -554,18 +545,6 @@ watch(
     }
 )
 
-watch(
-    () => form.status,
-    status => {
-      if (status === 'VERIFIED') {
-        form.verified = true
-      }
-
-      if (status === 'NEW') {
-        form.verified = false
-      }
-    }
-)
 </script>
 
 <template>
@@ -871,20 +850,6 @@ watch(
           />
         </div>
 
-        <div class="form-field">
-          <div class="verified-field">
-            <ToggleSwitch
-                input-id="transaction-verified"
-                v-model="form.verified"
-                :disabled="saving"
-            />
-
-            <label for="transaction-verified">
-              Proverena transakcija
-            </label>
-          </div>
-        </div>
-
         <div class="form-field full-width">
           <label for="transaction-notes">
             Napomena
@@ -957,13 +922,6 @@ watch(
 
 .field-help {
   color: var(--p-text-muted-color);
-}
-
-.verified-field {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 2.75rem;
 }
 
 @media (max-width: 700px) {

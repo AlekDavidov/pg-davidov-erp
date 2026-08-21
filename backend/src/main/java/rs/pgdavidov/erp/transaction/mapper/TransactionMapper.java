@@ -26,7 +26,6 @@ public class TransactionMapper {
         transaction.setReference(request.reference());
         transaction.setStatus(request.status());
         transaction.setSource(request.source());
-        transaction.setVerified(request.verified());
         transaction.setNotes(request.notes());
 
         return transaction;
@@ -46,7 +45,6 @@ public class TransactionMapper {
         transaction.setReference(request.reference());
         transaction.setStatus(request.status());
         transaction.setSource(request.source());
-        transaction.setVerified(request.verified());
         transaction.setNotes(request.notes());
     }
 
@@ -73,7 +71,6 @@ public class TransactionMapper {
                 transaction.getReference(),
                 transaction.getStatus(),
                 transaction.getSource(),
-                transaction.getVerified(),
                 transaction.getNotes(),
                 transaction.getCreatedAt(),
                 transaction.getUpdatedAt()

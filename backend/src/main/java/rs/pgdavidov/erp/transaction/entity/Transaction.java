@@ -101,9 +101,6 @@ public class Transaction extends BaseEntity {
     )
     private TransactionSource source;
 
-    @Column(name = "verified", nullable = false)
-    private Boolean verified;
-
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 }

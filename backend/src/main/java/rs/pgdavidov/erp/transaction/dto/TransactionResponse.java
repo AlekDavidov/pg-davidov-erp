@@ -40,8 +40,6 @@ public record TransactionResponse(
 
         TransactionSource source,
 
-        Boolean verified,
-
         String notes,
 
         OffsetDateTime createdAt,

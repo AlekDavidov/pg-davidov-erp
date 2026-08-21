@@ -45,9 +45,6 @@ public record TransactionRequest(
         @NotNull
         TransactionSource source,
 
-        @NotNull
-        Boolean verified,
-
         String notes
 ) {
 }
