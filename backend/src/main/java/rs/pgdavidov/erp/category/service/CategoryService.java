@@ -76,7 +76,9 @@ public class CategoryService {
                         new CategoryOptionResponse(
                                 category.getId(),
                                 category.getCode(),
-                                category.getName()
+                                category.getName(),
+                                category.getCategoryType(),
+                                category.isIncludeInFinancialReport()
                         )
                 )
                 .toList();

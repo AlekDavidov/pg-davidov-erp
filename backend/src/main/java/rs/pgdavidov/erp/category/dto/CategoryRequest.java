@@ -14,6 +14,8 @@ public record CategoryRequest(
         @NotNull
         CategoryType categoryType,
 
-        boolean active
+        boolean active,
+
+        boolean includeInFinancialReport
 ) {
 }

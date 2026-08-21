@@ -1,5 +1,7 @@
 package rs.pgdavidov.erp.category.dto;
 
+import rs.pgdavidov.erp.category.entity.CategoryType;
+
 import java.util.UUID;
 
 public record CategoryOptionResponse(
@@ -8,7 +10,11 @@ public record CategoryOptionResponse(
 
         String code,
 
-        String name
+        String name,
+
+        CategoryType categoryType,
+
+        boolean includeInFinancialReport
 
 ) {
 }

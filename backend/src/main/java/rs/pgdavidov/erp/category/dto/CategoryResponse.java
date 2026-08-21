@@ -11,6 +11,7 @@ public record CategoryResponse(
         String name,
         CategoryType categoryType,
         boolean active,
+        boolean includeInFinancialReport,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

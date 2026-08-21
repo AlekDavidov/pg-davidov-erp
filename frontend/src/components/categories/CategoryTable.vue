@@ -226,6 +226,27 @@ onMounted(loadCategories)
       </Column>
 
       <Column
+          field="includeInFinancialReport"
+          header="Fin. izveštaji"
+          sortable
+      >
+        <template #body="{ data }">
+          <Tag
+              :value="
+                data.includeInFinancialReport
+                  ? 'DA'
+                  : 'NE'
+              "
+              :severity="
+                data.includeInFinancialReport
+                  ? 'success'
+                  : 'secondary'
+              "
+          />
+        </template>
+      </Column>
+
+      <Column
           field="active"
           header="Status"
           sortable

@@ -157,7 +157,10 @@ const availableCategories = computed(() => {
           category.active ||
           category.id === form.categoryId
       ) &&
-      category.categoryType === expectedCategoryType
+      (
+          category.categoryType === expectedCategoryType ||
+          category.includeInFinancialReport === false
+      )
   )
 })
 
@@ -480,7 +483,8 @@ watch(
 
       if (
           selectedCategory.categoryType !==
-          expectedType
+          expectedType &&
+          selectedCategory.includeInFinancialReport !== false
       ) {
         form.categoryId = null
       }
@@ -520,7 +524,8 @@ watch(
 
       if (
           defaultCategory.categoryType ===
-          expectedType
+          expectedType ||
+          defaultCategory.includeInFinancialReport === false
       ) {
         form.categoryId =
             selectedSupplier.defaultCategoryId
