@@ -326,23 +326,6 @@ onMounted(loadTransactions)
         </template>
       </Column>
 
-      <Column
-          field="verified"
-          header="Proverena"
-          sortable
-      >
-        <template #body="{ data }">
-          <Tag
-              :value="data.verified ? 'Da' : 'Ne'"
-              :severity="
-              data.verified
-                ? 'success'
-                : 'secondary'
-            "
-          />
-        </template>
-      </Column>
-
       <Column header="Akcije">
         <template #body="{ data }">
           <div class="row-actions">

@@ -489,7 +489,6 @@ public class BankImportService {
                 transaction.reference(),
                 TransactionStatus.NEW,
                 TransactionSource.BANK_IMPORT,
-                false,
                 null
         );
     }
